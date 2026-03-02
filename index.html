@@ -1,540 +1,821 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>牛頓第二運動定律模擬器</title>
-  <!-- 載入 Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 載入 Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    /* 隱藏不想顯示的捲軸 */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>物理科學習目錄</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #f0f4fc;
+    --bg-secondary: #e3e9f7;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --text-primary: #1a1f3d;
+    --text-secondary: #5c6284;
+    --accent-1: #5c2de0;
+    --accent-2: #2b6ff2;
+    --accent-3: #0098b5;
+    --glow-1: rgba(92, 45, 224, 0.15);
+    --glow-2: rgba(43, 111, 242, 0.15);
+    --glow-3: rgba(0, 152, 181, 0.12);
+    --border-color: rgba(92, 45, 224, 0.18);
+    --card-hover-bg: rgba(255, 255, 255, 0.95);
+    --grid-color: rgba(92, 45, 224, 0.06);
+    --orb-alpha: 0.06;
+    --particle-opacity: 0.35;
+    --section1-color: #e65100;
+    --section1-bg: rgba(230, 81, 0, 0.1);
+    --section1-hover-shadow: rgba(230, 81, 0, 0.15);
+    --section2-color: #00873e;
+    --section2-bg: rgba(0, 135, 62, 0.1);
+    --section2-hover-shadow: rgba(0, 135, 62, 0.15);
+    --formula-color: rgba(92, 45, 224, 0.2);
+    --back-hover-bg: rgba(43, 111, 242, 0.08);
+  }
+
+  html.dark {
+    --bg-primary: #0a0e27;
+    --bg-secondary: #111640;
+    --bg-card: rgba(25, 32, 80, 0.7);
+    --text-primary: #e8eaf6;
+    --text-secondary: #9fa8da;
+    --accent-1: #7c4dff;
+    --accent-2: #448aff;
+    --accent-3: #00e5ff;
+    --glow-1: rgba(124, 77, 255, 0.4);
+    --glow-2: rgba(68, 138, 255, 0.4);
+    --glow-3: rgba(0, 229, 255, 0.3);
+    --border-color: rgba(124, 77, 255, 0.25);
+    --card-hover-bg: rgba(40, 50, 110, 0.8);
+    --grid-color: rgba(124, 77, 255, 0.04);
+    --orb-alpha: 0.08;
+    --particle-opacity: 0.3;
+    --section1-color: #ff9100;
+    --section1-bg: rgba(255, 109, 0, 0.15);
+    --section1-hover-shadow: rgba(255, 109, 0, 0.2);
+    --section2-color: #69f0ae;
+    --section2-bg: rgba(0, 200, 83, 0.15);
+    --section2-hover-shadow: rgba(0, 200, 83, 0.2);
+    --formula-color: rgba(124, 77, 255, 0.25);
+    --back-hover-bg: rgba(68, 138, 255, 0.1);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated background */
+  .bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Grid overlay */
+  .grid-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Floating particles */
+  .particles {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: floatParticle linear infinite;
+    opacity: var(--particle-opacity);
+  }
+
+  @keyframes floatParticle {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: var(--particle-opacity); }
+    90% { opacity: var(--particle-opacity); }
+    100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+  }
+
+  /* Container */
+  .container {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+  }
+
+  /* Views */
+  .view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .view.active {
+    display: flex;
+    animation: viewIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .view.exit {
+    display: flex;
+    animation: viewOut 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  }
+
+  @keyframes viewIn {
+    0% { opacity: 0; transform: translateY(30px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes viewOut {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-20px) scale(0.96); }
+  }
+
+  /* Header area */
+  .header-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px var(--glow-1);
+    animation: iconPulse 3s ease-in-out infinite;
+    position: relative;
+  }
+
+  .header-icon::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+    z-index: -1;
+    opacity: 0.4;
+    filter: blur(8px);
+    animation: iconGlow 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes iconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+
+  @keyframes iconGlow {
+    0% { opacity: 0.3; }
+    100% { opacity: 0.6; }
+  }
+
+  .header-icon i {
+    font-size: 2rem;
+    color: white;
+  }
+
+  .title {
+    font-family: 'Orbitron', 'Noto Sans TC', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 1px;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 2.5rem;
+    line-height: 1.6;
+  }
+
+  /* Chapter card button */
+  .chapter-card {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.8rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+    outline: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  :root .chapter-card {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  html.dark .chapter-card {
+    box-shadow: none;
+  }
+
+  :root .section-card {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  html.dark .section-card {
+    box-shadow: none;
+  }
+
+  .chapter-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--accent-1), var(--accent-3));
+    border-radius: 4px 0 0 4px;
+    transition: width 0.35s ease;
+  }
+
+  .chapter-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 80% 50%, var(--glow-2), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .chapter-card:hover, .chapter-card:focus-visible {
+    background: var(--card-hover-bg);
+    border-color: var(--accent-2);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px var(--glow-1), 0 4px 16px var(--glow-2);
+  }
+
+  .chapter-card:hover::before {
+    width: 6px;
+  }
+
+  .chapter-card:hover::after {
+    opacity: 0.15;
+  }
+
+  .chapter-card:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-info {
+    flex: 1;
+  }
+
+  .card-badge {
+    display: inline-block;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent-3);
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    padding: 0.25rem 0.7rem;
+    border-radius: 20px;
+    margin-bottom: 0.7rem;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 0.4rem;
+  }
+
+  .card-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .card-arrow {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(124, 77, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 1rem;
+    transition: all 0.35s ease;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-arrow i {
+    font-size: 1rem;
+    color: var(--accent-2);
+    transition: transform 0.35s ease;
+  }
+
+  .chapter-card:hover .card-arrow {
+    background: rgba(124, 77, 255, 0.3);
+  }
+
+  .chapter-card:hover .card-arrow i {
+    transform: translateX(3px);
+  }
+
+  /* Section cards (sub-chapter) */
+  .section-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .section-card {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .section-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+    transition: width 0.35s ease;
+  }
+
+  .section-card:nth-child(1)::before {
+    background: var(--section1-color);
+  }
+
+  .section-card:nth-child(2)::before {
+    background: var(--section2-color);
+  }
+
+  .section-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .section-card:nth-child(1)::after {
+    background: radial-gradient(circle at 80% 50%, var(--section1-hover-shadow), transparent 60%);
+  }
+
+  .section-card:nth-child(2)::after {
+    background: radial-gradient(circle at 80% 50%, var(--section2-hover-shadow), transparent 60%);
+  }
+
+  .section-card:hover {
+    background: var(--card-hover-bg);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+
+  .section-card:nth-child(1):hover {
+    border-color: var(--section1-color);
+    box-shadow: 0 12px 40px var(--section1-hover-shadow);
+  }
+
+  .section-card:nth-child(2):hover {
+    border-color: var(--section2-color);
+    box-shadow: 0 12px 40px var(--section2-hover-shadow);
+  }
+
+  .section-card:hover::before { width: 6px; }
+  .section-card:hover::after { opacity: 1; }
+
+  .section-card:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+
+  .section-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+
+  .section-card:nth-child(1) .section-icon {
+    background: var(--section1-bg);
+    color: var(--section1-color);
+  }
+
+  .section-card:nth-child(2) .section-icon {
+    background: var(--section2-bg);
+    color: var(--section2-color);
+  }
+
+  .section-icon i {
+    font-size: 1.25rem;
+  }
+
+  .section-info {
+    flex: 1;
+  }
+
+  .section-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-bottom: 0.35rem;
+    opacity: 0.7;
+  }
+
+  .section-card:nth-child(1) .section-num { color: var(--section1-color); }
+  .section-card:nth-child(2) .section-num { color: var(--section2-color); }
+
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 0.3rem;
+  }
+
+  .section-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .section-arrow {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+    transition: all 0.35s ease;
+  }
+
+  .section-card:nth-child(1) .section-arrow {
+    background: var(--section1-bg);
+    color: var(--section1-color);
+  }
+
+  .section-card:nth-child(2) .section-arrow {
+    background: var(--section2-bg);
+    color: var(--section2-color);
+  }
+
+  .section-arrow i {
+    font-size: 0.85rem;
+    transition: transform 0.35s ease;
+  }
+
+  .section-card:hover .section-arrow i {
+    transform: translateX(3px);
+  }
+
+  /* Back button */
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 2rem;
+    align-self: flex-start;
+    backdrop-filter: blur(8px);
+  }
+
+  .back-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-2);
+    background: var(--back-hover-bg);
+  }
+
+  .back-btn i {
+    transition: transform 0.3s ease;
+  }
+
+  .back-btn:hover i {
+    transform: translateX(-3px);
+  }
+
+  /* Stagger animation */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+
+  .fade-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Formula decoration */
+  .formula-decoration {
+    font-family: 'Orbitron', serif;
+    font-size: 0.75rem;
+    color: var(--formula-color);
+    letter-spacing: 2px;
+    margin-top: 3rem;
+    text-align: center;
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .container { padding: 1.5rem 1rem; }
+    .title { font-size: 1.25rem; }
+    .card-title { font-size: 1.1rem; }
+    .section-title { font-size: 1rem; }
+    .header-icon { width: 64px; height: 64px; }
+    .header-icon i { font-size: 1.6rem; }
+    .section-icon { width: 42px; height: 42px; }
+  }
+</style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 min-h-screen p-4 md:p-8">
+<body>
+<canvas class="bg-canvas" id="bgCanvas"></canvas>
+<div class="grid-overlay"></div>
+<div class="particles" id="particles"></div>
 
-  <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-    
-    <!-- 標題與模式切換區 -->
-    <div class="bg-blue-600 p-6 text-white">
-      <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <div>
-          <h1 class="text-3xl font-bold mb-2">牛頓第二運動定律</h1>
-          <p class="text-blue-100 flex items-center gap-2">
-            <i data-lucide="info" class="w-5 h-5"></i>
-            動畫進行中，您可以隨時改變推力與質量，觀察曲線的即時變化！
-          </p>
-        </div>
-        
-        <div class="flex bg-blue-800/50 p-1 rounded-lg">
-          <button id="btnExploreMode" class="flex items-center gap-2 px-4 py-2 rounded-md transition-colors bg-white text-blue-700 font-bold">
-            <i data-lucide="flask-conical" class="w-5 h-5"></i> 自由探索
-          </button>
-          <button id="btnPracticeMode" class="flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-blue-100 hover:bg-blue-700/50">
-            <i data-lucide="clipboard-list" class="w-5 h-5"></i> 無限練習
-          </button>
-        </div>
-      </div>
+<div class="container">
+  <!-- View 1: Main Menu -->
+  <div class="view active" id="viewMain">
+    <div class="header-icon fade-up stagger-1">
+      <i class="fas fa-atom"></i>
     </div>
+    <h1 class="title fade-up stagger-2">物理科學習平台</h1>
+    <p class="subtitle fade-up stagger-3">Physics Learning Platform</p>
 
-    <div class="p-6 md:p-8">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        
-        <!-- 左側：滑桿控制區 -->
-        <div class="space-y-6 bg-slate-100 p-6 rounded-xl border-2 border-slate-200">
-          <h2 class="text-xl font-bold border-b border-slate-300 pb-2 flex items-center gap-2">實驗儀器面板</h2>
-          
-          <div>
-            <label class="flex justify-between font-bold mb-2 text-red-600">
-              <span>推力 (Force)</span><span id="lblForce">5 N</span>
-            </label>
-            <input type="range" id="inpForce" min="0" max="20" step="1" value="5" class="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer accent-red-600" />
-          </div>
-          <div>
-            <label class="flex justify-between font-bold mb-2 text-orange-600">
-              <span>摩擦力 (Friction)</span><span id="lblFriction">0 N</span>
-            </label>
-            <input type="range" id="inpFriction" min="0" max="20" step="1" value="0" class="w-full h-2 bg-orange-200 rounded-lg appearance-none cursor-pointer accent-orange-600" />
-          </div>
-          <div>
-            <label class="flex justify-between font-bold mb-2 text-blue-600">
-              <span>質量 (Mass)</span><span id="lblMass">2 kg</span>
-            </label>
-            <input type="range" id="inpMass" min="1" max="20" step="1" value="2" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-          </div>
-
-          <div class="flex gap-4 pt-4">
-            <button id="btnStart" class="flex-1 flex justify-center items-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-bold transition-colors disabled:opacity-50">
-              <i data-lucide="play" class="w-5 h-5"></i> <span id="txtStartBtn">開始推動</span>
-            </button>
-            <button id="btnReset" class="flex justify-center items-center gap-2 bg-slate-500 hover:bg-slate-600 text-white py-3 px-4 rounded-lg font-bold transition-colors">
-              <i data-lucide="rotate-ccw" class="w-5 h-5"></i> 重設
-            </button>
-          </div>
+    <button class="chapter-card fade-up stagger-4" onclick="navigateTo('viewChapter3')" aria-label="進入第三課 力與運動">
+      <div class="card-top">
+        <div class="card-info">
+          <span class="card-badge">Chapter 3</span>
+          <div class="card-title">Ch3 力與運動(I)</div>
+          <div class="card-desc">Force and Motion — 牛頓運動定律</div>
         </div>
-
-        <!-- 右側：探索模式 -->
-        <div id="panelExplore" class="space-y-6 bg-green-50 p-6 rounded-xl border border-green-200 flex flex-col justify-center">
-          <h2 class="text-xl font-bold border-b border-green-200 pb-2 text-green-800">觀察結果</h2>
-          <div class="bg-white p-4 rounded-lg shadow-sm text-center">
-            <p class="text-sm text-slate-500 mb-1">公式： 加速度 = 淨力(推力 - 摩擦力) ÷ 質量</p>
-            <div class="text-3xl font-mono font-bold flex justify-center items-center gap-3">
-              <span class="text-green-600">a</span><span>=</span>
-              <div class="flex flex-col items-center justify-center">
-                <span class="text-slate-800 border-b-2 border-slate-800 px-2 whitespace-nowrap">
-                  <span id="fmlaForce" class="text-red-600">5</span> - <span id="fmlaFriction" class="text-orange-500">0</span>
-                </span>
-                <span id="fmlaMass" class="text-blue-600 px-2">2</span>
-              </div>
-              <span>=</span><span id="fmlaA" class="text-green-600">2.50</span>
-            </div>
-            <p class="text-sm text-slate-500 mt-2">m/s²</p>
-          </div>
-          <div class="grid grid-cols-2 gap-4 text-center">
-            <div class="bg-white p-3 rounded-lg shadow-sm">
-              <p class="text-sm text-slate-500">目前速度 (v)</p>
-              <p class="text-2xl font-bold font-mono text-cyan-600"><span id="valV">0.00</span> <span class="text-sm font-normal text-slate-500">m/s</span></p>
-            </div>
-            <div class="bg-white p-3 rounded-lg shadow-sm">
-              <p class="text-sm text-slate-500">經過時間 (t)</p>
-              <p class="text-2xl font-bold font-mono text-slate-700"><span id="valT">0.00</span> <span class="text-sm font-normal text-slate-500">s</span></p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 右側：練習模式 (預設隱藏) -->
-        <div id="panelPractice" class="hidden space-y-4 bg-yellow-50 p-6 rounded-xl border-2 border-yellow-300 flex flex-col justify-center">
-          <h2 class="text-xl font-bold border-b border-yellow-300 pb-2 text-yellow-800 flex items-center gap-2">
-            <i data-lucide="clipboard-list" class="w-5 h-5"></i> 任務挑戰
-          </h2>
-          
-          <div class="bg-white p-5 rounded-lg shadow-sm text-lg text-slate-700">
-            <p class="font-bold text-blue-600 mb-2 text-sm">請利用左側儀器做實驗，或用紙筆計算：</p>
-            <div id="qText"></div>
-          </div>
-
-          <div class="flex items-center gap-3 mt-2">
-            <input type="number" id="inpAns" placeholder="輸入數字" class="border-2 border-slate-300 rounded-lg p-2 w-28 text-center text-xl font-bold focus:border-blue-500 outline-none" />
-            <span id="lblAnsUnit" class="font-bold text-slate-500">m/s²</span>
-            <button id="btnSubmitAns" class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-bold transition-colors">提交答案</button>
-          </div>
-
-          <!-- 答題回饋區 -->
-          <div id="fbCorrect" class="hidden bg-green-100 text-green-700 p-4 rounded-lg border border-green-300 font-bold flex justify-between items-center animate-pulse">
-            <span class="flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> 答對了！</span>
-            <button id="btnNextQ" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">下一題</button>
-          </div>
-          <div id="fbWrong" class="hidden bg-red-100 text-red-700 p-3 rounded-lg border border-red-300 font-bold flex items-center gap-2">
-            <i data-lucide="x-circle" class="w-5 h-5"></i> 答案不對喔。利用滑桿動手實驗看看！
-          </div>
-        </div>
-
-      </div>
-
-      <!-- 動畫顯示區 -->
-      <div class="mb-8">
-        <h3 class="text-lg font-bold mb-4 text-slate-700">1. 實驗模擬畫面</h3>
-        <div class="relative h-48 bg-sky-50 border-2 border-slate-300 rounded-lg overflow-hidden flex items-end pb-4 px-4 shadow-inner">
-          <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: linear-gradient(90deg, #cbd5e1 1px, transparent 1px); background-size: 10% 100%;"></div>
-          
-          <!-- 移動的容器 -->
-          <div id="animContainer" class="absolute bottom-4 flex items-center" style="left: 0%; z-index: 10;">
-            
-            <!-- 推力箭頭 -->
-            <div id="forceArrow" class="flex items-center text-red-600 mr-1" style="transform: translateX(-100%); position: absolute; left: 0;">
-              <div id="forceArrowLbl" class="font-bold text-sm mr-1 whitespace-nowrap">推力 5N</div>
-              <div id="forceArrowLine" class="bg-red-600 h-1 transition-all duration-200" style="width: 55px;"></div>
-              <div class="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-red-600 border-b-[4px] border-b-transparent"></div>
-            </div>
-            
-            <!-- 質量方塊 -->
-            <div id="massBox" class="bg-blue-500 border-2 border-blue-700 rounded shadow-md flex items-center justify-center text-white font-bold relative transition-all duration-200" style="width: 48px; height: 48px; box-shadow: 4px 4px 0px rgba(0,0,0,0.1);">
-              <span id="massBoxLbl">2kg</span>
-              
-              <!-- 摩擦力箭頭 -->
-              <div id="frictionArrow" class="hidden flex items-center text-orange-500 absolute" style="right: 100%; bottom: -2px;">
-                <div id="frictionArrowLbl" class="font-bold text-xs whitespace-nowrap absolute" style="bottom: 8px; right: 10px;">摩擦 0N</div>
-                <div class="w-0 h-0 border-t-[4px] border-t-transparent border-r-[6px] border-r-orange-500 border-b-[4px] border-b-transparent"></div>
-                <div id="frictionArrowLine" class="bg-orange-500 h-1 transition-all duration-200" style="width: 30px;"></div>
-              </div>
-            </div>
-
-          </div>
-          <div class="absolute bottom-0 left-0 right-0 h-4 bg-slate-400"></div>
+        <div class="card-arrow">
+          <i class="fas fa-arrow-right"></i>
         </div>
       </div>
+    </button>
 
-      <!-- 實時運動線圖 -->
-      <div>
-        <h3 class="text-lg font-bold mb-4 text-slate-700">2. 實時運動線圖</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="graphContainer">
-          <!-- 圖表會透過 JS 動態生成 -->
-        </div>
-        <div id="practiceHint" class="hidden text-center text-blue-600 font-bold mt-4 bg-blue-50 p-2 rounded-lg">
-          💡 試試看在車子移動的途中改變推力，看看 v-t 圖的「斜率」和 a-t 圖的「高低」會怎麼瞬間變化！
-        </div>
-      </div>
-
-    </div>
+    <div class="formula-decoration fade-up stagger-4">F = m · a</div>
   </div>
 
-  <script>
-    // 初始化 Lucide 圖標
-    lucide.createIcons();
+  <!-- View 2: Chapter 3 Sub-sections -->
+  <div class="view" id="viewChapter3">
+    <button class="back-btn fade-up stagger-1" onclick="navigateTo('viewMain')" aria-label="返回主頁">
+      <i class="fas fa-arrow-left"></i>
+      <span>返回主頁</span>
+    </button>
 
-    // --- 應用程式狀態 ---
-    const state = {
-      mode: 'explore', // 'explore' or 'practice'
-      force: 5,
-      friction: 0,
-      mass: 2,
-      isAnimating: false,
-      qData: null,
-      qStatus: 'idle', // 'idle', 'correct', 'wrong'
-      simData: { t: 0, s: 0, v: 0, a: 0 },
-      history: [{ t: 0, s: 0, v: 0, a: 0 }]
-    };
+    <div class="header-icon fade-up stagger-1" style="background: linear-gradient(135deg, #ff6d00, #00c853);">
+      <i class="fas fa-rocket"></i>
+    </div>
+    <h1 class="title fade-up stagger-2">Ch3 力與運動(I)</h1>
+    <p class="subtitle fade-up stagger-3">選擇以下課題開始學習</p>
 
-    const trackLength = 10;
-    let animationFrameId = null;
-    let lastTimestamp = null;
+    <div class="section-cards">
+      <a class="section-card fade-up stagger-3"
+         href="https://leungsiulong.github.io/s4physics/牛頓第二運動定律"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Ch3.3 牛頓運動第二定律">
+        <div class="section-inner">
+          <div class="section-icon">
+            <i class="fas fa-arrows-alt"></i>
+          </div>
+          <div class="section-info">
+            <div class="section-num">SECTION 3.3</div>
+            <div class="section-title">牛頓運動第二定律</div>
+            <div class="section-desc">Newton's Second Law of Motion</div>
+          </div>
+          <div class="section-arrow">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </a>
 
-    // --- DOM 元素綁定 ---
-    const els = {
-      // 模式
-      btnExplore: document.getElementById('btnExploreMode'),
-      btnPractice: document.getElementById('btnPracticeMode'),
-      panelExplore: document.getElementById('panelExplore'),
-      panelPractice: document.getElementById('panelPractice'),
-      practiceHint: document.getElementById('practiceHint'),
-      
-      // 輸入控制
-      inpForce: document.getElementById('inpForce'),
-      inpFriction: document.getElementById('inpFriction'),
-      inpMass: document.getElementById('inpMass'),
-      lblForce: document.getElementById('lblForce'),
-      lblFriction: document.getElementById('lblFriction'),
-      lblMass: document.getElementById('lblMass'),
-      btnStart: document.getElementById('btnStart'),
-      txtStartBtn: document.getElementById('txtStartBtn'),
-      btnReset: document.getElementById('btnReset'),
-      
-      // 動畫
-      animContainer: document.getElementById('animContainer'),
-      massBox: document.getElementById('massBox'),
-      massBoxLbl: document.getElementById('massBoxLbl'),
-      forceArrow: document.getElementById('forceArrow'),
-      forceArrowLine: document.getElementById('forceArrowLine'),
-      forceArrowLbl: document.getElementById('forceArrowLbl'),
-      frictionArrow: document.getElementById('frictionArrow'),
-      frictionArrowLine: document.getElementById('frictionArrowLine'),
-      frictionArrowLbl: document.getElementById('frictionArrowLbl'),
-      
-      // 探索數據
-      fmlaForce: document.getElementById('fmlaForce'),
-      fmlaFriction: document.getElementById('fmlaFriction'),
-      fmlaMass: document.getElementById('fmlaMass'),
-      fmlaA: document.getElementById('fmlaA'),
-      valV: document.getElementById('valV'),
-      valT: document.getElementById('valT'),
-      
-      // 練習區
-      qText: document.getElementById('qText'),
-      inpAns: document.getElementById('inpAns'),
-      lblAnsUnit: document.getElementById('lblAnsUnit'),
-      btnSubmitAns: document.getElementById('btnSubmitAns'),
-      fbCorrect: document.getElementById('fbCorrect'),
-      fbWrong: document.getElementById('fbWrong'),
-      btnNextQ: document.getElementById('btnNextQ'),
+      <a class="section-card fade-up stagger-4"
+         href="https://leungsiulong.github.io/s4physics/重量與牛頓第二定律"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Ch3.4 重量與牛頓運動第二定律">
+        <div class="section-inner">
+          <div class="section-icon">
+            <i class="fas fa-weight-hanging"></i>
+          </div>
+          <div class="section-info">
+            <div class="section-num">SECTION 3.4</div>
+            <div class="section-title">重量與牛頓運動第二定律</div>
+            <div class="section-desc">Weight and Newton's Second Law</div>
+          </div>
+          <div class="section-arrow">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </a>
+    </div>
 
-      // 圖表容器
-      graphContainer: document.getElementById('graphContainer')
-    };
+    <div class="formula-decoration fade-up stagger-4">W = m · g</div>
+  </div>
+</div>
 
-    // --- 圖表系統 ---
-    const graphConfigs = [
-      { id: 's', title: '位移-時間圖 (s-t)', yLabel: 's (m)', color: '#8b5cf6', dataKey: 's', staticMaxY: trackLength },
-      { id: 'v', title: '速度-時間圖 (v-t)', yLabel: 'v (m/s)', color: '#06b6d4', dataKey: 'v', staticMaxY: null },
-      { id: 'a', title: '加速度-時間圖 (a-t)', yLabel: 'a (m/s²)', color: '#22c55e', dataKey: 'a', staticMaxY: null }
-    ];
+<script>
+  // Dark mode detection
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.classList.add('dark');
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(event) {
+    if (event.matches) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  });
 
-    function initGraphs() {
-      els.graphContainer.innerHTML = '';
-      graphConfigs.forEach(cfg => {
-        const div = document.createElement('div');
-        div.className = "bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center w-full";
-        div.innerHTML = `
-          <h4 class="font-bold text-slate-700 mb-1">${cfg.title}</h4>
-          <svg viewBox="0 0 240 140" class="w-full h-auto overflow-visible">
-            <line x1="25" y1="25" x2="25" y2="115" stroke="#cbd5e1" stroke-width="2" />
-            <line x1="25" y1="115" x2="215" y2="115" stroke="#cbd5e1" stroke-width="2" />
-            <text id="g-${cfg.id}-maxY" x="20" y="25" text-anchor="end" alignment-baseline="middle" font-size="10" fill="#64748b">5.0</text>
-            <text x="20" y="115" text-anchor="end" alignment-baseline="middle" font-size="10" fill="#64748b">0</text>
-            <text id="g-${cfg.id}-maxT" x="215" y="130" text-anchor="middle" font-size="10" fill="#64748b">5.0s</text>
-            <text x="25" y="130" text-anchor="middle" font-size="10" fill="#64748b">0</text>
-            <text x="25" y="15" text-anchor="middle" font-size="10" fill="#64748b" font-weight="bold">${cfg.yLabel}</text>
-            <text x="225" y="115" text-anchor="start" alignment-baseline="middle" font-size="10" fill="#64748b" font-weight="bold">t(s)</text>
-            <path id="g-${cfg.id}-path" d="" fill="none" stroke="${cfg.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-            <circle id="g-${cfg.id}-dot" cx="-10" cy="-10" r="4" fill="${cfg.color}" />
-          </svg>
-        `;
-        els.graphContainer.appendChild(div);
+  // View navigation
+  function navigateTo(targetId) {
+    var currentView = document.querySelector('.view.active');
+    var targetView = document.getElementById(targetId);
+
+    if (currentView === targetView) return;
+
+    currentView.classList.remove('active');
+    currentView.classList.add('exit');
+
+    setTimeout(function() {
+      currentView.classList.remove('exit');
+
+      // Reset fade-up animations
+      var fadeEls = targetView.querySelectorAll('.fade-up');
+      fadeEls.forEach(function(el) {
+        el.style.animation = 'none';
+        el.offsetHeight; // trigger reflow
+        el.style.animation = '';
       });
+
+      targetView.classList.add('active');
+    }, 350);
+  }
+
+  // Background canvas animation
+  (function() {
+    var canvas = document.getElementById('bgCanvas');
+    var ctx = canvas.getContext('2d');
+    var w, h, orbs;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
     }
 
-    function renderGraphs() {
-      let peakV = 5, peakA = 5;
-      for (let i = 0; i < state.history.length; i++) {
-        if (state.history[i].v > peakV) peakV = state.history[i].v;
-        if (state.history[i].a > peakA) peakA = state.history[i].a;
+    function createOrbs() {
+      orbs = [];
+      var count = Math.min(5, Math.floor(w / 200));
+      for (var i = 0; i < count; i++) {
+        orbs.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 200 + 100,
+          dx: (Math.random() - 0.5) * 0.3,
+          dy: (Math.random() - 0.5) * 0.3,
+          hue: Math.random() * 60 + 240
+        });
       }
-      
-      const maxT = Math.max(5, state.simData.t * 1.2);
-      
-      graphConfigs.forEach(cfg => {
-        let maxY = cfg.staticMaxY;
-        if (cfg.id === 'v') maxY = Math.max(5, peakV * 1.2);
-        if (cfg.id === 'a') maxY = Math.max(5, peakA * 1.2);
+    }
 
-        document.getElementById(`g-${cfg.id}-maxY`).textContent = maxY.toFixed(1);
-        document.getElementById(`g-${cfg.id}-maxT`).textContent = maxT.toFixed(1) + 's';
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      orbs.forEach(function(orb) {
+        orb.x += orb.dx;
+        orb.y += orb.dy;
+        if (orb.x < -orb.r) orb.x = w + orb.r;
+        if (orb.x > w + orb.r) orb.x = -orb.r;
+        if (orb.y < -orb.r) orb.y = h + orb.r;
+        if (orb.y > h + orb.r) orb.y = -orb.r;
 
-        const scaleX = (t) => 25 + (t / maxT) * 190;
-        const scaleY = (y) => 115 - (y / Math.max(maxY, 0.1)) * 90;
-
-        const pathEl = document.getElementById(`g-${cfg.id}-path`);
-        const dotEl = document.getElementById(`g-${cfg.id}-dot`);
-
-        if (state.history.length > 0) {
-          const pathData = `M ${state.history.map(h => `${scaleX(h.t)},${scaleY(h[cfg.dataKey])}`).join(' L ')}`;
-          pathEl.setAttribute('d', pathData);
-          
-          const currentPoint = state.history[state.history.length - 1];
-          dotEl.setAttribute('cx', scaleX(currentPoint.t));
-          dotEl.setAttribute('cy', scaleY(currentPoint[cfg.dataKey]));
-        } else {
-          pathEl.setAttribute('d', '');
-          dotEl.setAttribute('cx', -10);
-        }
+        var gradient = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.r);
+        var alpha = document.documentElement.classList.contains('dark') ? 0.08 : 0.06;
+        gradient.addColorStop(0, 'hsla(' + orb.hue + ', 80%, 50%, ' + alpha + ')');
+        gradient.addColorStop(1, 'hsla(' + orb.hue + ', 80%, 50%, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+        ctx.fill();
       });
+      requestAnimationFrame(draw);
     }
 
-    // --- 實時物理引擎 (Euler Integration) ---
-    function animate(timestamp) {
-      if (!lastTimestamp) lastTimestamp = timestamp;
-      const dt = (timestamp - lastTimestamp) / 1000 * 0.5; // 放慢 0.5 倍速
-      lastTimestamp = timestamp;
-
-      let stopNow = false;
-
-      if (state.simData.s >= trackLength) {
-        stopNow = true;
-      } else {
-        let currentA = (state.force - state.friction) / state.mass;
-        if (currentA < 0 && state.simData.v <= 0.01) {
-          currentA = 0;
-        }
-
-        let newV = state.simData.v + currentA * dt;
-        if (newV < 0) {
-          newV = 0;
-          currentA = 0;
-        }
-
-        let newS = state.simData.s + newV * dt;
-        let newT = state.simData.t + dt;
-
-        if (newS >= trackLength) {
-          newS = trackLength;
-          stopNow = true;
-        }
-
-        state.simData = { t: newT, s: newS, v: newV, a: currentA };
-        state.history.push(state.simData);
-      }
-
-      updateUI();
-
-      if (!stopNow && state.isAnimating) {
-        animationFrameId = requestAnimationFrame(animate);
-      } else {
-        state.isAnimating = false;
-        lastTimestamp = null;
-        updateUI();
-      }
-    }
-
-    // --- 核心更新 UI 邏輯 ---
-    function updateUI() {
-      // 面板控制數值
-      els.lblForce.textContent = `${state.force} N`;
-      els.lblFriction.textContent = `${state.friction} N`;
-      els.lblMass.textContent = `${state.mass} kg`;
-      
-      els.inpForce.value = state.force;
-      els.inpFriction.value = state.friction;
-      els.inpMass.value = state.mass;
-
-      // 判斷按鈕狀態
-      const isStuck = state.simData.v === 0 && state.force <= state.friction;
-      const finished = state.simData.s >= trackLength;
-      
-      els.btnStart.disabled = state.isAnimating || finished || isStuck;
-      els.txtStartBtn.textContent = isStuck ? '推不動！' : '開始推動';
-
-      // 探索模式的公式面板
-      const effectiveFriction = (state.simData.v === 0 && state.force < state.friction) ? state.force : state.friction;
-      const displayA = (state.force - effectiveFriction) / state.mass;
-      
-      els.fmlaForce.textContent = state.force;
-      els.fmlaFriction.textContent = effectiveFriction;
-      els.fmlaMass.textContent = state.mass;
-      els.fmlaA.textContent = displayA.toFixed(2);
-      els.valV.textContent = state.simData.v.toFixed(2);
-      els.valT.textContent = state.simData.t.toFixed(2);
-
-      // 動畫畫面更新
-      const positionPercent = Math.min((state.simData.s / trackLength) * 85, 85);
-      els.animContainer.style.left = `${positionPercent}%`;
-      
-      const boxSize = 40 + state.mass * 4;
-      els.massBox.style.width = `${boxSize}px`;
-      els.massBox.style.height = `${boxSize}px`;
-      els.massBoxLbl.textContent = `${state.mass}kg`;
-
-      // 推力與摩擦力箭頭
-      if (state.isAnimating || state.simData.t === 0 || state.force > 0) {
-        els.forceArrow.classList.remove('hidden');
-        els.forceArrowLbl.textContent = `推力 ${state.force}N`;
-        els.forceArrowLine.style.width = `${30 + state.force * 5}px`;
-      } else {
-        els.forceArrow.classList.add('hidden');
-      }
-
-      if (state.friction > 0) {
-        els.frictionArrow.classList.remove('hidden');
-        els.frictionArrowLbl.textContent = `摩擦 ${state.friction}N`;
-        els.frictionArrowLine.style.width = `${30 + state.friction * 5}px`;
-      } else {
-        els.frictionArrow.classList.add('hidden');
-      }
-
-      // 繪製圖表
-      renderGraphs();
-    }
-
-    // --- 事件綁定與功能 ---
-    function setMode(newMode) {
-      state.mode = newMode;
-      if (newMode === 'explore') {
-        els.btnExplore.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors bg-white text-blue-700 font-bold";
-        els.btnPractice.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-blue-100 hover:bg-blue-700/50";
-        els.panelExplore.classList.remove('hidden');
-        els.panelPractice.classList.add('hidden');
-        els.practiceHint.classList.add('hidden');
-      } else {
-        els.btnPractice.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors bg-white text-blue-700 font-bold";
-        els.btnExplore.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-blue-100 hover:bg-blue-700/50";
-        els.panelPractice.classList.remove('hidden');
-        els.panelExplore.classList.add('hidden');
-        els.practiceHint.classList.remove('hidden');
-        if (!state.qData) generateQuestion();
-      }
-    }
-
-    els.btnExplore.addEventListener('click', () => setMode('explore'));
-    els.btnPractice.addEventListener('click', () => setMode('practice'));
-
-    // 滑桿事件 (直接改變 state，動畫迴圈會實時抓取)
-    els.inpForce.addEventListener('input', (e) => { state.force = Number(e.target.value); updateUI(); });
-    els.inpFriction.addEventListener('input', (e) => { state.friction = Number(e.target.value); updateUI(); });
-    els.inpMass.addEventListener('input', (e) => { state.mass = Number(e.target.value); updateUI(); });
-
-    els.btnStart.addEventListener('click', () => {
-      if (state.simData.s >= trackLength) {
-        handleReset();
-      }
-      state.isAnimating = true;
-      lastTimestamp = null;
-      animationFrameId = requestAnimationFrame(animate);
-      updateUI();
+    resize();
+    createOrbs();
+    draw();
+    window.addEventListener('resize', function() {
+      resize();
+      createOrbs();
     });
+  })();
 
-    els.btnReset.addEventListener('click', handleReset);
+  // Floating particles
+  (function() {
+    var container = document.getElementById('particles');
+    var colors = ['#7c4dff', '#448aff', '#00e5ff', '#ff6d00', '#69f0ae'];
 
-    function handleReset() {
-      state.isAnimating = false;
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      state.simData = { t: 0, s: 0, v: 0, a: 0 };
-      state.history = [{ t: 0, s: 0, v: 0, a: 0 }];
-      updateUI();
+    for (var i = 0; i < 15; i++) {
+      var p = document.createElement('div');
+      p.className = 'particle';
+      var size = Math.random() * 4 + 2;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDuration = (Math.random() * 15 + 10) + 's';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      container.appendChild(p);
     }
-
-    // --- 練習任務邏輯 ---
-    function generateQuestion() {
-      const types = ['find_a', 'find_F', 'find_m'];
-      const type = types[Math.floor(Math.random() * types.length)];
-      let m, a, f, F;
-      do {
-        m = Math.floor(Math.random() * 4) + 1; 
-        a = Math.floor(Math.random() * 3) + 1; 
-        f = Math.floor(Math.random() * 4);     
-        F = m * a + f;
-      } while (F > 20 || F < 1);
-
-      state.qData = { type, m, a, f, F };
-      els.inpAns.value = '';
-      setQStatus('idle');
-      
-      // 更新題目文字
-      if (type === 'find_a') {
-        els.qText.innerHTML = `設定：推力 <strong class="text-red-600">${F}N</strong>、摩擦力 <strong class="text-orange-500">${f}N</strong>、質量 <strong class="text-blue-600">${m}kg</strong>。此時的 <strong>加速度 (a)</strong> 是多少？`;
-        els.lblAnsUnit.textContent = 'm/s²';
-      } else if (type === 'find_F') {
-        els.qText.innerHTML = `質量 <strong class="text-blue-600">${m}kg</strong>、摩擦力 <strong class="text-orange-500">${f}N</strong>。若要產生 <strong class="text-green-600">${a} m/s²</strong> 的加速度，<strong>推力 (F)</strong> 需要多少？`;
-        els.lblAnsUnit.textContent = 'N';
-      } else {
-        els.qText.innerHTML = `推力 <strong class="text-red-600">${F}N</strong>、摩擦力 <strong class="text-orange-500">${f}N</strong> 產生了 <strong class="text-green-600">${a} m/s²</strong> 的加速度。<strong>質量 (m)</strong> 是多少？`;
-        els.lblAnsUnit.textContent = 'kg';
-      }
-
-      state.force = 5; state.friction = 0; state.mass = 2;
-      handleReset();
-    }
-
-    function setQStatus(status) {
-      state.qStatus = status;
-      if (status === 'correct') {
-        els.fbCorrect.classList.remove('hidden');
-        els.fbWrong.classList.add('hidden');
-      } else if (status === 'wrong') {
-        els.fbWrong.classList.remove('hidden');
-        els.fbCorrect.classList.add('hidden');
-      } else {
-        els.fbCorrect.classList.add('hidden');
-        els.fbWrong.classList.add('hidden');
-      }
-    }
-
-    els.btnSubmitAns.addEventListener('click', () => {
-      const val = parseFloat(els.inpAns.value);
-      if (isNaN(val)) return;
-      let target = state.qData.type === 'find_a' ? state.qData.a : (state.qData.type === 'find_F' ? state.qData.F : state.qData.m);
-      setQStatus(val === target ? 'correct' : 'wrong');
-    });
-
-    els.inpAns.addEventListener('input', () => setQStatus('idle'));
-    els.btnNextQ.addEventListener('click', generateQuestion);
-
-    // --- 啟動 ---
-    initGraphs();
-    updateUI();
-
-  </script>
+  })();
+</script>
 </body>
 </html>
