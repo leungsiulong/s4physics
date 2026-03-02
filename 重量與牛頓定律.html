@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重量與牛頓第二定律視覺實驗室</title>
+    <!-- 引入 Tailwind CSS 用於排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 React 核心函式庫 -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- 引入 Babel 用於在瀏覽器直接解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-100">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function App() {
+            // UI 狀態：分頁 (lab, formulas, practice)
+            const [activeTab, setActiveTab] = useState('lab');
+
+            // 物理狀態
+            const [mass, setMass] = useState(10);
+            const [thrust, setThrust] = useState(98);
+            const [gravity, setGravity] = useState(9.8);
+            
+            // 動畫與運動狀態
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [pos, setPos] = useState(0);
+            const [vel, setVel] = useState(0);
+            
+            // 練習模式狀態
+            const [qType, setQType] = useState('weight'); // 'weight', 'netForce', 'accel', 'hover'
+            const [qParams, setQParams] = useState({ m: 10, f: 150, g: 9.8 });
+            const [userAns, setUserAns] = useState('');
+            const [feedback, setFeedback] = useState(null); // { text: '', isCorrect: false }
+
+            // 計算當前物理量
+            const weight = mass * gravity;
+            const netForce = thrust - weight;
+            const acceleration = netForce / mass;
+
+            // Refs 用於動畫循環
+            const posRef = useRef(0);
+            const velRef = useRef(0);
+            const lastTimeRef = useRef(performance.now());
+            const requestRef = useRef();
+
+            const reset = () => {
+                setIsPlaying(false);
+                setPos(0);
+                setVel(0);
+                posRef.current = 0;
+                velRef.current = 0;
+            };
+
+            // 動畫引擎
+            useEffect(() => {
+                if (!isPlaying) {
+                    lastTimeRef.current = performance.now();
+                    cancelAnimationFrame(requestRef.current);
+                    return;
+                }
+
+                const animate = (time) => {
+                    const dt = Math.min((time - lastTimeRef.current) / 1000, 0.1); 
+                    lastTimeRef.current = time;
+
+                    velRef.current += acceleration * 10 * dt; // 放大速度方便觀察
+                    posRef.current += velRef.current * dt;
+
+                    if (posRef.current <= 0) {
+                        posRef.current = 0;
+                        if (velRef.current < 0) velRef.current = 0;
+                    }
+                    if (posRef.current >= 400) {
+                        posRef.current = 400;
+                        if (velRef.current > 0) velRef.current = 0;
+                    }
+
+                    setPos(posRef.current);
+                    setVel(velRef.current);
+                    requestRef.current = requestAnimationFrame(animate);
+                };
+
+                requestRef.current = requestAnimationFrame(animate);
+                return () => cancelAnimationFrame(requestRef.current);
+            }, [isPlaying, acceleration]);
+
+            // 教學預設情境 (實驗室用)
+            const presets = {
+                hover: () => { setMass(10); setGravity(9.8); setThrust(98); reset(); },
+                liftOff: () => { setMass(10); setGravity(9.8); setThrust(150); reset(); },
+                freeFall: () => { setMass(10); setGravity(9.8); setThrust(0); reset(); setPos(300); posRef.current = 300; }
+            };
+
+            // 產生新練習題
+            const generateQuestion = () => {
+                const types = ['weight', 'netForce', 'accel', 'hover'];
+                const selectedType = types[Math.floor(Math.random() * types.length)];
+                
+                // 隨機生成合理數字
+                const randomM = Math.floor(Math.random() * 15) + 5; // 5 到 19 kg
+                let randomF = Math.floor(randomM * 9.8) + (Math.floor(Math.random() * 100) - 40); // 隨機推力
+                if (randomF < 0) randomF = 0; // 確保推力不為負
+
+                setQType(selectedType);
+                setQParams({ m: randomM, f: randomF, g: 9.8 });
+                setUserAns('');
+                setFeedback(null);
+                
+                // 如果需要強制學生動手，可以在這裡重置拉桿，但不強制，讓他們自己拉
+                // setMass(10); setThrust(0); 
+            };
+
+            // 首次進入練習模式時產生題目
+            useEffect(() => {
+                if (activeTab === 'practice' && !feedback && userAns === '') {
+                    generateQuestion();
+                }
+            }, [activeTab]);
+
+            // 檢查答案
+            const checkAnswer = () => {
+                let correctAns = 0;
+                if (qType === 'weight') correctAns = qParams.m * qParams.g;
+                if (qType === 'netForce') correctAns = Math.abs(qParams.f - (qParams.m * qParams.g));
+                if (qType === 'accel') correctAns = Math.abs((qParams.f - (qParams.m * qParams.g)) / qParams.m);
+                if (qType === 'hover') correctAns = qParams.m * qParams.g;
+
+                const userVal = parseFloat(userAns);
+                if (isNaN(userVal)) {
+                    setFeedback({ text: '⚠️ 請輸入數字！', isCorrect: false });
+                    return;
+                }
+
+                // 容許 0.2 的誤差 (因為可能會有小數點進位問題)
+                if (Math.abs(userVal - correctAns) <= 0.2) {
+                    setFeedback({ text: '✅ 答對了！非常棒！', isCorrect: true });
+                } else {
+                    setFeedback({ text: '❌ 差一點點。提示：把下方的「質量」和「推力」調成題目一樣，看看左邊的箭頭數值！', isCorrect: false });
+                }
+            };
+
+            const forceScale = 0.8;
+
+            // --- 渲染不同分頁的內容 ---
+
+            const renderLab = () => (
+                <>
+                    <div className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-300">
+                        <h2 className="text-lg font-bold text-amber-800 mb-3">ℹ️ 教學一鍵設定 (老師專用)</h2>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button onClick={presets.hover} className="bg-white border-2 border-amber-400 hover:bg-amber-100 text-amber-900 py-2 rounded-lg text-sm font-bold transition shadow-sm">1. 停在半空</button>
+                            <button onClick={presets.liftOff} className="bg-white border-2 border-blue-400 hover:bg-blue-100 text-blue-900 py-2 rounded-lg text-sm font-bold transition shadow-sm">2. 加速升空</button>
+                            <button onClick={presets.freeFall} className="bg-white border-2 border-red-400 hover:bg-red-100 text-red-900 py-2 rounded-lg text-sm font-bold transition shadow-sm">3. 自由下墜</button>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-800 p-4 md:p-5 rounded-2xl shadow-lg text-white font-mono text-base md:text-lg">
+                        <h2 className="text-sky-400 font-bold mb-4 border-b border-slate-600 pb-2">📊 物理算式黑板 (即時更新)</h2>
+                        <div className="space-y-4">
+                            <div className="bg-slate-700/60 p-3 rounded-lg border-l-4 border-red-500">
+                                <div className="text-slate-300 text-sm mb-1">第一步：計算重量 (地球向下的拉力)</div>
+                                <div><span className="text-red-400 font-bold">W = m × g</span></div>
+                                <div className="text-lg md:text-xl mt-1">W = {mass} × {gravity} = <span className="text-red-400 font-bold">{weight.toFixed(1)} N</span></div>
+                            </div>
+                            <div className="bg-slate-700/60 p-3 rounded-lg border-l-4 border-green-500">
+                                <div className="text-slate-300 text-sm mb-1">第二步：計算淨力</div>
+                                <div><span className="text-green-400 font-bold">F_net = 推力 - 重量</span></div>
+                                <div className="text-lg md:text-xl mt-1">F_net = {thrust.toFixed(1)} - {weight.toFixed(1)} = <span className="text-green-400 font-bold">{netForce.toFixed(1)} N</span></div>
+                            </div>
+                            <div className="bg-slate-700/60 p-3 rounded-lg border-l-4 border-purple-500">
+                                <div className="text-slate-300 text-sm mb-1">第三步：求加速度 (牛頓第二定律)</div>
+                                <div><span className="text-purple-400 font-bold">a = F_net ÷ m</span></div>
+                                <div className="text-lg md:text-xl mt-1">a = {netForce.toFixed(1)} ÷ {mass} = <span className="text-purple-400 font-bold">{acceleration.toFixed(2)} m/s²</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            );
+
+            const renderFormulas = () => (
+                <div className="space-y-5">
+                    <div className="bg-blue-50 border-l-8 border-blue-500 p-5 rounded-xl shadow-sm">
+                        <h2 className="text-2xl font-black text-blue-800 flex items-center gap-2">📦 1. 重量 (Weight)</h2>
+                        <p className="text-slate-600 mt-2 mb-4 font-medium">物體被地球向下拉的力。質量 (m) 越大，重量 (W) 越大。</p>
+                        <div className="bg-white p-4 rounded-lg border-2 border-blue-200 text-center">
+                            <div className="text-3xl font-black text-blue-600 tracking-wider">W = m × g</div>
+                            <div className="mt-3 text-sm text-slate-500 flex justify-center gap-6">
+                                <span><strong className="text-slate-700">W:</strong> 重量 (N)</span>
+                                <span><strong className="text-slate-700">m:</strong> 質量 (kg)</span>
+                                <span><strong className="text-slate-700">g:</strong> 重力 (9.81 m/s²)</span>
+                            </div>
+                        </div>
+                        <div className="mt-3 text-sm text-red-600 font-bold bg-red-50 p-2 rounded">
+                            ⚠️ 必考陷阱：去到月球，「質量(kg)」不會變，但因為月球引力弱，所以「重量(N)」會變小！
+                        </div>
+                    </div>
+
+                    <div className="bg-green-50 border-l-8 border-green-500 p-5 rounded-xl shadow-sm">
+                        <h2 className="text-2xl font-black text-green-800 flex items-center gap-2">⚖️ 2. 淨力 (Net Force)</h2>
+                        <p className="text-slate-600 mt-2 mb-4 font-medium">兩個方向相反的力「打交」，互相抵消後剩下的力。</p>
+                        <div className="bg-white p-4 rounded-lg border-2 border-green-200 text-center">
+                            <div className="text-3xl font-black text-green-600 tracking-wider">淨力 = 大力 - 細力</div>
+                        </div>
+                        <ul className="mt-4 space-y-2 text-sm text-slate-700 font-medium">
+                            <li className="flex gap-2"><span>•</span><span>若 向上推力 <strong>大過</strong> 重量 ➡️ 淨力向上，火箭會向上加速。</span></li>
+                            <li className="flex gap-2"><span>•</span><span>若 向上推力 <strong>等於</strong> 重量 ➡️ 淨力 = 0，火箭會<strong>靜止(懸停)</strong>或<strong>勻速飛行</strong>。</span></li>
+                        </ul>
+                    </div>
+
+                    <div className="bg-purple-50 border-l-8 border-purple-500 p-5 rounded-xl shadow-sm">
+                        <h2 className="text-2xl font-black text-purple-800 flex items-center gap-2">🚀 3. 牛頓第二定律</h2>
+                        <p className="text-slate-600 mt-2 mb-4 font-medium">只要有「淨力」，物體就會「加速」。</p>
+                        <div className="bg-white p-4 rounded-lg border-2 border-purple-200 text-center">
+                            <div className="text-3xl font-black text-purple-600 tracking-wider">F = m × a</div>
+                            <div className="text-xl font-bold text-slate-500 mt-2">( 淨力 = 質量 × 加速度 )</div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const renderPractice = () => (
+                <div className="space-y-4">
+                    {/* 題目區 */}
+                    <div className="bg-indigo-50 p-5 rounded-2xl border-2 border-indigo-200 shadow-sm relative">
+                        <div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-xl">無限題庫</div>
+                        <h2 className="text-xl font-bold text-indigo-900 mb-2">📝 實戰練習</h2>
+                        <p className="text-indigo-800 text-lg font-medium leading-relaxed">
+                            {qType === 'weight' && `一架質量為 ${qParams.m} kg 的火箭，它在地球上的重量是多少 N？`}
+                            {qType === 'netForce' && `一架質量為 ${qParams.m} kg 的火箭，引擎產生了向上的推力 ${qParams.f} N。請問火箭的淨力大小是多少 N？`}
+                            {qType === 'accel' && `一架質量為 ${qParams.m} kg 的火箭，引擎產生了向上的推力 ${qParams.f} N。請問火箭的加速度大小是多少 m/s²？`}
+                            {qType === 'hover' && `一架質量為 ${qParams.m} kg 的無人機要在半空「懸停」(靜止不動)。它需要產生多少 N 的向上推力？`}
+                        </p>
+                        
+                        <div className="mt-4 bg-white p-3 rounded-xl border border-indigo-100 flex items-center gap-3">
+                            <input 
+                                type="number" 
+                                value={userAns} 
+                                onChange={(e) => setUserAns(e.target.value)} 
+                                placeholder="輸入你的答案..."
+                                className="flex-1 bg-slate-100 border-none rounded-lg px-4 py-3 font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-400 outline-none"
+                            />
+                            <button 
+                                onClick={checkAnswer}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md whitespace-nowrap"
+                            >
+                                提交答案
+                            </button>
+                        </div>
+
+                        {/* 回饋訊息 */}
+                        {feedback && (
+                            <div className={`mt-4 p-4 rounded-xl font-bold text-lg border-2 ${feedback.isCorrect ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-50 text-red-800 border-red-200'}`}>
+                                {feedback.text}
+                                {feedback.isCorrect && (
+                                    <button 
+                                        onClick={generateQuestion}
+                                        className="mt-3 block w-full bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition shadow-sm"
+                                    >
+                                        👉 下一題
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 教學提示 */}
+                    <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200 text-yellow-800 font-medium text-sm flex gap-3 items-start">
+                        <span className="text-2xl">💡</span>
+                        <p>
+                            <strong>不懂怎麼算？做個實驗吧！</strong><br/>
+                            請在下方的「手動控制面板」中，把 <strong className="text-blue-700">質量調成 {qParams.m} kg</strong>，
+                            {qType !== 'hover' && qType !== 'weight' ? <span className="text-blue-700"><strong> 推力調成 {qParams.f} N</strong>，</span> : ''} 
+                            然後觀察左邊畫面上<strong>紅藍箭頭的數值</strong>，以及綠色框框顯示的<strong>淨力</strong>，答案就藏在裡面！
+                        </p>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen p-4 font-sans text-slate-800 pb-12">
+                    <div className="max-w-6xl mx-auto">
+                        <header className="mb-6 text-center">
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-800 flex items-center justify-center gap-2">
+                                🚀 重量與牛頓第二定律學習站
+                            </h1>
+                        </header>
+
+                        {/* 分頁導航列 */}
+                        <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-hidden max-w-2xl mx-auto">
+                            <button 
+                                onClick={() => setActiveTab('lab')} 
+                                className={`flex-1 py-3 text-center font-bold transition ${activeTab === 'lab' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                🧪 自由實驗室
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('formulas')} 
+                                className={`flex-1 py-3 text-center font-bold transition border-l border-r border-slate-200 ${activeTab === 'formulas' ? 'bg-purple-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                📖 公式溫習
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('practice')} 
+                                className={`flex-1 py-3 text-center font-bold transition ${activeTab === 'practice' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                📝 互動練習
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            {/* 左側：動畫視覺區 (共用) */}
+                            <div className="lg:col-span-5 bg-white rounded-2xl shadow-lg border-2 border-slate-200 overflow-hidden flex flex-col relative h-[500px] md:h-[650px]">
+                                <div className={`absolute inset-0 transition-colors duration-1000 ${gravity === 1.6 ? 'bg-slate-900' : 'bg-sky-100'}`}>
+                                    {gravity === 1.6 && <div className="absolute top-4 left-4 text-slate-300 font-bold text-sm">🌌 月球表面 (重力較弱)</div>}
+                                    {gravity === 9.8 && <div className="absolute top-4 left-4 text-sky-700 font-bold text-sm">🌍 地球表面</div>}
+                                </div>
+                                
+                                <div className="flex-grow relative flex justify-center">
+                                    <div className="absolute" style={{ bottom: `${pos + 40}px`, transition: isPlaying ? 'none' : 'bottom 0.5s ease-out' }}>
+                                        {/* 向上推力 */}
+                                        {thrust > 0 && (
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 flex flex-col items-center mb-1">
+                                                <div className="text-blue-700 font-bold text-sm md:text-base bg-white/90 px-2 rounded shadow-sm whitespace-nowrap">
+                                                    推力 {thrust.toFixed(0)} N
+                                                </div>
+                                                <div className="w-2 md:w-3 bg-blue-500 rounded-t-sm origin-bottom" style={{ height: `${thrust * forceScale}px`, minHeight: '10px' }}></div>
+                                                <div className="text-blue-600 -mt-3 z-10 text-xl md:text-2xl">⬆️</div>
+                                            </div>
+                                        )}
+
+                                        {/* 火箭本體 */}
+                                        <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-800 rounded-xl flex items-center justify-center text-white shadow-xl relative z-20 border-4 border-slate-700 text-3xl md:text-4xl">
+                                            🚀
+                                        </div>
+
+                                        {/* 向下重量 */}
+                                        {weight > 0 && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 flex flex-col items-center mt-1">
+                                                <div className="text-red-500 -mb-3 z-10 text-xl md:text-2xl">⬇️</div>
+                                                <div className="w-2 md:w-3 bg-red-500 rounded-b-sm origin-top" style={{ height: `${weight * forceScale}px`, minHeight: '10px' }}></div>
+                                                <div className="text-red-700 font-bold text-sm md:text-base bg-white/90 px-2 rounded shadow-sm whitespace-nowrap mt-1">
+                                                    重量 {weight.toFixed(0)} N
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 淨力 */}
+                                        {netForce !== 0 && (
+                                            <div className={`absolute top-1/2 ${netForce > 0 ? '-mt-10' : 'mt-10'} left-full ml-4 flex items-center gap-1 opacity-90`}>
+                                                <span className="text-lg md:text-xl">{netForce > 0 ? '⬆️' : '⬇️'}</span>
+                                                <span className="text-green-800 font-black bg-green-200 px-2 md:px-3 py-1 rounded-lg text-sm md:text-base whitespace-nowrap border-2 border-green-400 shadow-sm">
+                                                    淨力: {Math.abs(netForce).toFixed(0)} N
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className={`h-12 w-full z-10 transition-colors duration-1000 border-t-4 border-black/20 ${gravity === 1.6 ? 'bg-slate-600' : 'bg-emerald-600'}`}></div>
+                            </div>
+
+                            {/* 右側：動態內容區 */}
+                            <div className="lg:col-span-7 flex flex-col gap-4">
+                                
+                                {/* 根據 Tab 顯示不同上半部內容 */}
+                                {activeTab === 'lab' && renderLab()}
+                                {activeTab === 'formulas' && renderFormulas()}
+                                {activeTab === 'practice' && renderPractice()}
+
+                                {/* 共用的手動控制面板 (公式區可選擇隱藏，但為了方便隨時做實驗，保留在最下方) */}
+                                {activeTab !== 'formulas' && (
+                                    <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border-2 border-slate-200 mt-2">
+                                        <h2 className="text-lg font-bold text-slate-800 mb-4">🎛️ 手動控制面板 (實驗區)</h2>
+                                        <div className="space-y-6">
+                                            <div>
+                                                <div className="flex justify-between mb-2">
+                                                    <label className="font-bold text-slate-700">📦 物體質量 (m)</label>
+                                                    <span className="text-blue-700 font-bold bg-blue-100 px-3 py-1 rounded-md">{mass} kg</span>
+                                                </div>
+                                                <input type="range" min="1" max="50" step="1" value={mass} onChange={(e) => setMass(Number(e.target.value))} className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between mb-2">
+                                                    <label className="font-bold text-slate-700">🚀 向上推力 (F)</label>
+                                                    <span className="text-blue-700 font-bold bg-blue-100 px-3 py-1 rounded-md">{thrust} N</span>
+                                                </div>
+                                                <input type="range" min="0" max="400" step="1" value={thrust} onChange={(e) => setThrust(Number(e.target.value))} className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-slate-200">
+                                            <button onClick={() => setIsPlaying(!isPlaying)} className={`flex-1 py-3 rounded-xl font-bold text-white text-lg flex justify-center items-center gap-2 transition shadow-md ${isPlaying ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}>
+                                                {isPlaying ? <>⏸️ 暫停動畫</> : <>▶️ 開始播放</>}
+                                            </button>
+                                            <button onClick={reset} className="px-6 py-3 rounded-xl font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition flex items-center justify-center gap-2">
+                                                🔄 重置位置
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
