@@ -1,418 +1,540 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>重量與牛頓第二定律視覺實驗室</title>
-    <!-- 引入 Tailwind CSS 用於排版 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 React 核心函式庫 -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- 引入 Babel 用於在瀏覽器直接解析 JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牛頓第二運動定律模擬器</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* 隱藏不想顯示的捲軸 */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
 </head>
-<body class="bg-slate-100">
-    <div id="root"></div>
+<body class="bg-slate-50 font-sans text-slate-800 min-h-screen p-4 md:p-8">
+
+  <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
     
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+    <!-- 標題與模式切換區 -->
+    <div class="bg-blue-600 p-6 text-white">
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+        <div>
+          <h1 class="text-3xl font-bold mb-2">牛頓第二運動定律</h1>
+          <p class="text-blue-100 flex items-center gap-2">
+            <i data-lucide="info" class="w-5 h-5"></i>
+            動畫進行中，您可以隨時改變推力與質量，觀察曲線的即時變化！
+          </p>
+        </div>
+        
+        <div class="flex bg-blue-800/50 p-1 rounded-lg">
+          <button id="btnExploreMode" class="flex items-center gap-2 px-4 py-2 rounded-md transition-colors bg-white text-blue-700 font-bold">
+            <i data-lucide="flask-conical" class="w-5 h-5"></i> 自由探索
+          </button>
+          <button id="btnPracticeMode" class="flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-blue-100 hover:bg-blue-700/50">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i> 無限練習
+          </button>
+        </div>
+      </div>
+    </div>
 
-        function App() {
-            // UI 狀態：分頁 (lab, formulas, practice)
-            const [activeTab, setActiveTab] = useState('lab');
+    <div class="p-6 md:p-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        
+        <!-- 左側：滑桿控制區 -->
+        <div class="space-y-6 bg-slate-100 p-6 rounded-xl border-2 border-slate-200">
+          <h2 class="text-xl font-bold border-b border-slate-300 pb-2 flex items-center gap-2">實驗儀器面板</h2>
+          
+          <div>
+            <label class="flex justify-between font-bold mb-2 text-red-600">
+              <span>推力 (Force)</span><span id="lblForce">5 N</span>
+            </label>
+            <input type="range" id="inpForce" min="0" max="20" step="1" value="5" class="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer accent-red-600" />
+          </div>
+          <div>
+            <label class="flex justify-between font-bold mb-2 text-orange-600">
+              <span>摩擦力 (Friction)</span><span id="lblFriction">0 N</span>
+            </label>
+            <input type="range" id="inpFriction" min="0" max="20" step="1" value="0" class="w-full h-2 bg-orange-200 rounded-lg appearance-none cursor-pointer accent-orange-600" />
+          </div>
+          <div>
+            <label class="flex justify-between font-bold mb-2 text-blue-600">
+              <span>質量 (Mass)</span><span id="lblMass">2 kg</span>
+            </label>
+            <input type="range" id="inpMass" min="1" max="20" step="1" value="2" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+          </div>
 
-            // 物理狀態
-            const [mass, setMass] = useState(10);
-            const [thrust, setThrust] = useState(98);
-            const [gravity, setGravity] = useState(9.8);
+          <div class="flex gap-4 pt-4">
+            <button id="btnStart" class="flex-1 flex justify-center items-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-bold transition-colors disabled:opacity-50">
+              <i data-lucide="play" class="w-5 h-5"></i> <span id="txtStartBtn">開始推動</span>
+            </button>
+            <button id="btnReset" class="flex justify-center items-center gap-2 bg-slate-500 hover:bg-slate-600 text-white py-3 px-4 rounded-lg font-bold transition-colors">
+              <i data-lucide="rotate-ccw" class="w-5 h-5"></i> 重設
+            </button>
+          </div>
+        </div>
+
+        <!-- 右側：探索模式 -->
+        <div id="panelExplore" class="space-y-6 bg-green-50 p-6 rounded-xl border border-green-200 flex flex-col justify-center">
+          <h2 class="text-xl font-bold border-b border-green-200 pb-2 text-green-800">觀察結果</h2>
+          <div class="bg-white p-4 rounded-lg shadow-sm text-center">
+            <p class="text-sm text-slate-500 mb-1">公式： 加速度 = 淨力(推力 - 摩擦力) ÷ 質量</p>
+            <div class="text-3xl font-mono font-bold flex justify-center items-center gap-3">
+              <span class="text-green-600">a</span><span>=</span>
+              <div class="flex flex-col items-center justify-center">
+                <span class="text-slate-800 border-b-2 border-slate-800 px-2 whitespace-nowrap">
+                  <span id="fmlaForce" class="text-red-600">5</span> - <span id="fmlaFriction" class="text-orange-500">0</span>
+                </span>
+                <span id="fmlaMass" class="text-blue-600 px-2">2</span>
+              </div>
+              <span>=</span><span id="fmlaA" class="text-green-600">2.50</span>
+            </div>
+            <p class="text-sm text-slate-500 mt-2">m/s²</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4 text-center">
+            <div class="bg-white p-3 rounded-lg shadow-sm">
+              <p class="text-sm text-slate-500">目前速度 (v)</p>
+              <p class="text-2xl font-bold font-mono text-cyan-600"><span id="valV">0.00</span> <span class="text-sm font-normal text-slate-500">m/s</span></p>
+            </div>
+            <div class="bg-white p-3 rounded-lg shadow-sm">
+              <p class="text-sm text-slate-500">經過時間 (t)</p>
+              <p class="text-2xl font-bold font-mono text-slate-700"><span id="valT">0.00</span> <span class="text-sm font-normal text-slate-500">s</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：練習模式 (預設隱藏) -->
+        <div id="panelPractice" class="hidden space-y-4 bg-yellow-50 p-6 rounded-xl border-2 border-yellow-300 flex flex-col justify-center">
+          <h2 class="text-xl font-bold border-b border-yellow-300 pb-2 text-yellow-800 flex items-center gap-2">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i> 任務挑戰
+          </h2>
+          
+          <div class="bg-white p-5 rounded-lg shadow-sm text-lg text-slate-700">
+            <p class="font-bold text-blue-600 mb-2 text-sm">請利用左側儀器做實驗，或用紙筆計算：</p>
+            <div id="qText"></div>
+          </div>
+
+          <div class="flex items-center gap-3 mt-2">
+            <input type="number" id="inpAns" placeholder="輸入數字" class="border-2 border-slate-300 rounded-lg p-2 w-28 text-center text-xl font-bold focus:border-blue-500 outline-none" />
+            <span id="lblAnsUnit" class="font-bold text-slate-500">m/s²</span>
+            <button id="btnSubmitAns" class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-bold transition-colors">提交答案</button>
+          </div>
+
+          <!-- 答題回饋區 -->
+          <div id="fbCorrect" class="hidden bg-green-100 text-green-700 p-4 rounded-lg border border-green-300 font-bold flex justify-between items-center animate-pulse">
+            <span class="flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> 答對了！</span>
+            <button id="btnNextQ" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">下一題</button>
+          </div>
+          <div id="fbWrong" class="hidden bg-red-100 text-red-700 p-3 rounded-lg border border-red-300 font-bold flex items-center gap-2">
+            <i data-lucide="x-circle" class="w-5 h-5"></i> 答案不對喔。利用滑桿動手實驗看看！
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 動畫顯示區 -->
+      <div class="mb-8">
+        <h3 class="text-lg font-bold mb-4 text-slate-700">1. 實驗模擬畫面</h3>
+        <div class="relative h-48 bg-sky-50 border-2 border-slate-300 rounded-lg overflow-hidden flex items-end pb-4 px-4 shadow-inner">
+          <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: linear-gradient(90deg, #cbd5e1 1px, transparent 1px); background-size: 10% 100%;"></div>
+          
+          <!-- 移動的容器 -->
+          <div id="animContainer" class="absolute bottom-4 flex items-center" style="left: 0%; z-index: 10;">
             
-            // 動畫與運動狀態
-            const [isPlaying, setIsPlaying] = useState(false);
-            const [pos, setPos] = useState(0);
-            const [vel, setVel] = useState(0);
+            <!-- 推力箭頭 -->
+            <div id="forceArrow" class="flex items-center text-red-600 mr-1" style="transform: translateX(-100%); position: absolute; left: 0;">
+              <div id="forceArrowLbl" class="font-bold text-sm mr-1 whitespace-nowrap">推力 5N</div>
+              <div id="forceArrowLine" class="bg-red-600 h-1 transition-all duration-200" style="width: 55px;"></div>
+              <div class="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-red-600 border-b-[4px] border-b-transparent"></div>
+            </div>
             
-            // 練習模式狀態
-            const [qType, setQType] = useState('weight'); // 'weight', 'netForce', 'accel', 'hover'
-            const [qParams, setQParams] = useState({ m: 10, f: 150, g: 9.8 });
-            const [userAns, setUserAns] = useState('');
-            const [feedback, setFeedback] = useState(null); // { text: '', isCorrect: false }
+            <!-- 質量方塊 -->
+            <div id="massBox" class="bg-blue-500 border-2 border-blue-700 rounded shadow-md flex items-center justify-center text-white font-bold relative transition-all duration-200" style="width: 48px; height: 48px; box-shadow: 4px 4px 0px rgba(0,0,0,0.1);">
+              <span id="massBoxLbl">2kg</span>
+              
+              <!-- 摩擦力箭頭 -->
+              <div id="frictionArrow" class="hidden flex items-center text-orange-500 absolute" style="right: 100%; bottom: -2px;">
+                <div id="frictionArrowLbl" class="font-bold text-xs whitespace-nowrap absolute" style="bottom: 8px; right: 10px;">摩擦 0N</div>
+                <div class="w-0 h-0 border-t-[4px] border-t-transparent border-r-[6px] border-r-orange-500 border-b-[4px] border-b-transparent"></div>
+                <div id="frictionArrowLine" class="bg-orange-500 h-1 transition-all duration-200" style="width: 30px;"></div>
+              </div>
+            </div>
 
-            // 計算當前物理量
-            const weight = mass * gravity;
-            const netForce = thrust - weight;
-            const acceleration = netForce / mass;
+          </div>
+          <div class="absolute bottom-0 left-0 right-0 h-4 bg-slate-400"></div>
+        </div>
+      </div>
 
-            // Refs 用於動畫循環
-            const posRef = useRef(0);
-            const velRef = useRef(0);
-            const lastTimeRef = useRef(performance.now());
-            const requestRef = useRef();
+      <!-- 實時運動線圖 -->
+      <div>
+        <h3 class="text-lg font-bold mb-4 text-slate-700">2. 實時運動線圖</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="graphContainer">
+          <!-- 圖表會透過 JS 動態生成 -->
+        </div>
+        <div id="practiceHint" class="hidden text-center text-blue-600 font-bold mt-4 bg-blue-50 p-2 rounded-lg">
+          💡 試試看在車子移動的途中改變推力，看看 v-t 圖的「斜率」和 a-t 圖的「高低」會怎麼瞬間變化！
+        </div>
+      </div>
 
-            const reset = () => {
-                setIsPlaying(false);
-                setPos(0);
-                setVel(0);
-                posRef.current = 0;
-                velRef.current = 0;
-            };
+    </div>
+  </div>
 
-            // 動畫引擎
-            useEffect(() => {
-                if (!isPlaying) {
-                    lastTimeRef.current = performance.now();
-                    cancelAnimationFrame(requestRef.current);
-                    return;
-                }
+  <script>
+    // 初始化 Lucide 圖標
+    lucide.createIcons();
 
-                const animate = (time) => {
-                    const dt = Math.min((time - lastTimeRef.current) / 1000, 0.1); 
-                    lastTimeRef.current = time;
+    // --- 應用程式狀態 ---
+    const state = {
+      mode: 'explore', // 'explore' or 'practice'
+      force: 5,
+      friction: 0,
+      mass: 2,
+      isAnimating: false,
+      qData: null,
+      qStatus: 'idle', // 'idle', 'correct', 'wrong'
+      simData: { t: 0, s: 0, v: 0, a: 0 },
+      history: [{ t: 0, s: 0, v: 0, a: 0 }]
+    };
 
-                    velRef.current += acceleration * 10 * dt; // 放大速度方便觀察
-                    posRef.current += velRef.current * dt;
+    const trackLength = 10;
+    let animationFrameId = null;
+    let lastTimestamp = null;
 
-                    if (posRef.current <= 0) {
-                        posRef.current = 0;
-                        if (velRef.current < 0) velRef.current = 0;
-                    }
-                    if (posRef.current >= 400) {
-                        posRef.current = 400;
-                        if (velRef.current > 0) velRef.current = 0;
-                    }
+    // --- DOM 元素綁定 ---
+    const els = {
+      // 模式
+      btnExplore: document.getElementById('btnExploreMode'),
+      btnPractice: document.getElementById('btnPracticeMode'),
+      panelExplore: document.getElementById('panelExplore'),
+      panelPractice: document.getElementById('panelPractice'),
+      practiceHint: document.getElementById('practiceHint'),
+      
+      // 輸入控制
+      inpForce: document.getElementById('inpForce'),
+      inpFriction: document.getElementById('inpFriction'),
+      inpMass: document.getElementById('inpMass'),
+      lblForce: document.getElementById('lblForce'),
+      lblFriction: document.getElementById('lblFriction'),
+      lblMass: document.getElementById('lblMass'),
+      btnStart: document.getElementById('btnStart'),
+      txtStartBtn: document.getElementById('txtStartBtn'),
+      btnReset: document.getElementById('btnReset'),
+      
+      // 動畫
+      animContainer: document.getElementById('animContainer'),
+      massBox: document.getElementById('massBox'),
+      massBoxLbl: document.getElementById('massBoxLbl'),
+      forceArrow: document.getElementById('forceArrow'),
+      forceArrowLine: document.getElementById('forceArrowLine'),
+      forceArrowLbl: document.getElementById('forceArrowLbl'),
+      frictionArrow: document.getElementById('frictionArrow'),
+      frictionArrowLine: document.getElementById('frictionArrowLine'),
+      frictionArrowLbl: document.getElementById('frictionArrowLbl'),
+      
+      // 探索數據
+      fmlaForce: document.getElementById('fmlaForce'),
+      fmlaFriction: document.getElementById('fmlaFriction'),
+      fmlaMass: document.getElementById('fmlaMass'),
+      fmlaA: document.getElementById('fmlaA'),
+      valV: document.getElementById('valV'),
+      valT: document.getElementById('valT'),
+      
+      // 練習區
+      qText: document.getElementById('qText'),
+      inpAns: document.getElementById('inpAns'),
+      lblAnsUnit: document.getElementById('lblAnsUnit'),
+      btnSubmitAns: document.getElementById('btnSubmitAns'),
+      fbCorrect: document.getElementById('fbCorrect'),
+      fbWrong: document.getElementById('fbWrong'),
+      btnNextQ: document.getElementById('btnNextQ'),
 
-                    setPos(posRef.current);
-                    setVel(velRef.current);
-                    requestRef.current = requestAnimationFrame(animate);
-                };
+      // 圖表容器
+      graphContainer: document.getElementById('graphContainer')
+    };
 
-                requestRef.current = requestAnimationFrame(animate);
-                return () => cancelAnimationFrame(requestRef.current);
-            }, [isPlaying, acceleration]);
+    // --- 圖表系統 ---
+    const graphConfigs = [
+      { id: 's', title: '位移-時間圖 (s-t)', yLabel: 's (m)', color: '#8b5cf6', dataKey: 's', staticMaxY: trackLength },
+      { id: 'v', title: '速度-時間圖 (v-t)', yLabel: 'v (m/s)', color: '#06b6d4', dataKey: 'v', staticMaxY: null },
+      { id: 'a', title: '加速度-時間圖 (a-t)', yLabel: 'a (m/s²)', color: '#22c55e', dataKey: 'a', staticMaxY: null }
+    ];
 
-            // 教學預設情境 (實驗室用)
-            const presets = {
-                hover: () => { setMass(10); setGravity(9.8); setThrust(98); reset(); },
-                liftOff: () => { setMass(10); setGravity(9.8); setThrust(150); reset(); },
-                freeFall: () => { setMass(10); setGravity(9.8); setThrust(0); reset(); setPos(300); posRef.current = 300; }
-            };
+    function initGraphs() {
+      els.graphContainer.innerHTML = '';
+      graphConfigs.forEach(cfg => {
+        const div = document.createElement('div');
+        div.className = "bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center w-full";
+        div.innerHTML = `
+          <h4 class="font-bold text-slate-700 mb-1">${cfg.title}</h4>
+          <svg viewBox="0 0 240 140" class="w-full h-auto overflow-visible">
+            <line x1="25" y1="25" x2="25" y2="115" stroke="#cbd5e1" stroke-width="2" />
+            <line x1="25" y1="115" x2="215" y2="115" stroke="#cbd5e1" stroke-width="2" />
+            <text id="g-${cfg.id}-maxY" x="20" y="25" text-anchor="end" alignment-baseline="middle" font-size="10" fill="#64748b">5.0</text>
+            <text x="20" y="115" text-anchor="end" alignment-baseline="middle" font-size="10" fill="#64748b">0</text>
+            <text id="g-${cfg.id}-maxT" x="215" y="130" text-anchor="middle" font-size="10" fill="#64748b">5.0s</text>
+            <text x="25" y="130" text-anchor="middle" font-size="10" fill="#64748b">0</text>
+            <text x="25" y="15" text-anchor="middle" font-size="10" fill="#64748b" font-weight="bold">${cfg.yLabel}</text>
+            <text x="225" y="115" text-anchor="start" alignment-baseline="middle" font-size="10" fill="#64748b" font-weight="bold">t(s)</text>
+            <path id="g-${cfg.id}-path" d="" fill="none" stroke="${cfg.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <circle id="g-${cfg.id}-dot" cx="-10" cy="-10" r="4" fill="${cfg.color}" />
+          </svg>
+        `;
+        els.graphContainer.appendChild(div);
+      });
+    }
 
-            // 產生新練習題
-            const generateQuestion = () => {
-                const types = ['weight', 'netForce', 'accel', 'hover'];
-                const selectedType = types[Math.floor(Math.random() * types.length)];
-                
-                // 隨機生成合理數字
-                const randomM = Math.floor(Math.random() * 15) + 5; // 5 到 19 kg
-                let randomF = Math.floor(randomM * 9.8) + (Math.floor(Math.random() * 100) - 40); // 隨機推力
-                if (randomF < 0) randomF = 0; // 確保推力不為負
+    function renderGraphs() {
+      let peakV = 5, peakA = 5;
+      for (let i = 0; i < state.history.length; i++) {
+        if (state.history[i].v > peakV) peakV = state.history[i].v;
+        if (state.history[i].a > peakA) peakA = state.history[i].a;
+      }
+      
+      const maxT = Math.max(5, state.simData.t * 1.2);
+      
+      graphConfigs.forEach(cfg => {
+        let maxY = cfg.staticMaxY;
+        if (cfg.id === 'v') maxY = Math.max(5, peakV * 1.2);
+        if (cfg.id === 'a') maxY = Math.max(5, peakA * 1.2);
 
-                setQType(selectedType);
-                setQParams({ m: randomM, f: randomF, g: 9.8 });
-                setUserAns('');
-                setFeedback(null);
-                
-                // 如果需要強制學生動手，可以在這裡重置拉桿，但不強制，讓他們自己拉
-                // setMass(10); setThrust(0); 
-            };
+        document.getElementById(`g-${cfg.id}-maxY`).textContent = maxY.toFixed(1);
+        document.getElementById(`g-${cfg.id}-maxT`).textContent = maxT.toFixed(1) + 's';
 
-            // 首次進入練習模式時產生題目
-            useEffect(() => {
-                if (activeTab === 'practice' && !feedback && userAns === '') {
-                    generateQuestion();
-                }
-            }, [activeTab]);
+        const scaleX = (t) => 25 + (t / maxT) * 190;
+        const scaleY = (y) => 115 - (y / Math.max(maxY, 0.1)) * 90;
 
-            // 檢查答案
-            const checkAnswer = () => {
-                let correctAns = 0;
-                if (qType === 'weight') correctAns = qParams.m * qParams.g;
-                if (qType === 'netForce') correctAns = Math.abs(qParams.f - (qParams.m * qParams.g));
-                if (qType === 'accel') correctAns = Math.abs((qParams.f - (qParams.m * qParams.g)) / qParams.m);
-                if (qType === 'hover') correctAns = qParams.m * qParams.g;
+        const pathEl = document.getElementById(`g-${cfg.id}-path`);
+        const dotEl = document.getElementById(`g-${cfg.id}-dot`);
 
-                const userVal = parseFloat(userAns);
-                if (isNaN(userVal)) {
-                    setFeedback({ text: '⚠️ 請輸入數字！', isCorrect: false });
-                    return;
-                }
+        if (state.history.length > 0) {
+          const pathData = `M ${state.history.map(h => `${scaleX(h.t)},${scaleY(h[cfg.dataKey])}`).join(' L ')}`;
+          pathEl.setAttribute('d', pathData);
+          
+          const currentPoint = state.history[state.history.length - 1];
+          dotEl.setAttribute('cx', scaleX(currentPoint.t));
+          dotEl.setAttribute('cy', scaleY(currentPoint[cfg.dataKey]));
+        } else {
+          pathEl.setAttribute('d', '');
+          dotEl.setAttribute('cx', -10);
+        }
+      });
+    }
 
-                // 容許 0.2 的誤差 (因為可能會有小數點進位問題)
-                if (Math.abs(userVal - correctAns) <= 0.2) {
-                    setFeedback({ text: '✅ 答對了！非常棒！', isCorrect: true });
-                } else {
-                    setFeedback({ text: '❌ 差一點點。提示：把下方的「質量」和「推力」調成題目一樣，看看左邊的箭頭數值！', isCorrect: false });
-                }
-            };
+    // --- 實時物理引擎 (Euler Integration) ---
+    function animate(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = (timestamp - lastTimestamp) / 1000 * 0.5; // 放慢 0.5 倍速
+      lastTimestamp = timestamp;
 
-            const forceScale = 0.8;
+      let stopNow = false;
 
-            // --- 渲染不同分頁的內容 ---
-
-            const renderLab = () => (
-                <>
-                    <div className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-300">
-                        <h2 className="text-lg font-bold text-amber-800 mb-3">ℹ️ 教學一鍵設定 (老師專用)</h2>
-                        <div className="grid grid-cols-3 gap-2">
-                            <button onClick={presets.hover} className="bg-white border-2 border-amber-400 hover:bg-amber-100 text-amber-900 py-2 rounded-lg text-sm font-bold transition shadow-sm">1. 停在半空</button>
-                            <button onClick={presets.liftOff} className="bg-white border-2 border-blue-400 hover:bg-blue-100 text-blue-900 py-2 rounded-lg text-sm font-bold transition shadow-sm">2. 加速升空</button>
-                            <button onClick={presets.freeFall} className="bg-white border-2 border-red-400 hover:bg-red-100 text-red-900 py-2 rounded-lg text-sm font-bold transition shadow-sm">3. 自由下墜</button>
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-800 p-4 md:p-5 rounded-2xl shadow-lg text-white font-mono text-base md:text-lg">
-                        <h2 className="text-sky-400 font-bold mb-4 border-b border-slate-600 pb-2">📊 物理算式黑板 (即時更新)</h2>
-                        <div className="space-y-4">
-                            <div className="bg-slate-700/60 p-3 rounded-lg border-l-4 border-red-500">
-                                <div className="text-slate-300 text-sm mb-1">第一步：計算重量 (地球向下的拉力)</div>
-                                <div><span className="text-red-400 font-bold">W = m × g</span></div>
-                                <div className="text-lg md:text-xl mt-1">W = {mass} × {gravity} = <span className="text-red-400 font-bold">{weight.toFixed(1)} N</span></div>
-                            </div>
-                            <div className="bg-slate-700/60 p-3 rounded-lg border-l-4 border-green-500">
-                                <div className="text-slate-300 text-sm mb-1">第二步：計算淨力</div>
-                                <div><span className="text-green-400 font-bold">F_net = 推力 - 重量</span></div>
-                                <div className="text-lg md:text-xl mt-1">F_net = {thrust.toFixed(1)} - {weight.toFixed(1)} = <span className="text-green-400 font-bold">{netForce.toFixed(1)} N</span></div>
-                            </div>
-                            <div className="bg-slate-700/60 p-3 rounded-lg border-l-4 border-purple-500">
-                                <div className="text-slate-300 text-sm mb-1">第三步：求加速度 (牛頓第二定律)</div>
-                                <div><span className="text-purple-400 font-bold">a = F_net ÷ m</span></div>
-                                <div className="text-lg md:text-xl mt-1">a = {netForce.toFixed(1)} ÷ {mass} = <span className="text-purple-400 font-bold">{acceleration.toFixed(2)} m/s²</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            );
-
-            const renderFormulas = () => (
-                <div className="space-y-5">
-                    <div className="bg-blue-50 border-l-8 border-blue-500 p-5 rounded-xl shadow-sm">
-                        <h2 className="text-2xl font-black text-blue-800 flex items-center gap-2">📦 1. 重量 (Weight)</h2>
-                        <p className="text-slate-600 mt-2 mb-4 font-medium">物體被地球向下拉的力。質量 (m) 越大，重量 (W) 越大。</p>
-                        <div className="bg-white p-4 rounded-lg border-2 border-blue-200 text-center">
-                            <div className="text-3xl font-black text-blue-600 tracking-wider">W = m × g</div>
-                            <div className="mt-3 text-sm text-slate-500 flex justify-center gap-6">
-                                <span><strong className="text-slate-700">W:</strong> 重量 (N)</span>
-                                <span><strong className="text-slate-700">m:</strong> 質量 (kg)</span>
-                                <span><strong className="text-slate-700">g:</strong> 重力 (9.81 m/s²)</span>
-                            </div>
-                        </div>
-                        <div className="mt-3 text-sm text-red-600 font-bold bg-red-50 p-2 rounded">
-                            ⚠️ 必考陷阱：去到月球，「質量(kg)」不會變，但因為月球引力弱，所以「重量(N)」會變小！
-                        </div>
-                    </div>
-
-                    <div className="bg-green-50 border-l-8 border-green-500 p-5 rounded-xl shadow-sm">
-                        <h2 className="text-2xl font-black text-green-800 flex items-center gap-2">⚖️ 2. 淨力 (Net Force)</h2>
-                        <p className="text-slate-600 mt-2 mb-4 font-medium">兩個方向相反的力「打交」，互相抵消後剩下的力。</p>
-                        <div className="bg-white p-4 rounded-lg border-2 border-green-200 text-center">
-                            <div className="text-3xl font-black text-green-600 tracking-wider">淨力 = 大力 - 細力</div>
-                        </div>
-                        <ul className="mt-4 space-y-2 text-sm text-slate-700 font-medium">
-                            <li className="flex gap-2"><span>•</span><span>若 向上推力 <strong>大過</strong> 重量 ➡️ 淨力向上，火箭會向上加速。</span></li>
-                            <li className="flex gap-2"><span>•</span><span>若 向上推力 <strong>等於</strong> 重量 ➡️ 淨力 = 0，火箭會<strong>靜止(懸停)</strong>或<strong>勻速飛行</strong>。</span></li>
-                        </ul>
-                    </div>
-
-                    <div className="bg-purple-50 border-l-8 border-purple-500 p-5 rounded-xl shadow-sm">
-                        <h2 className="text-2xl font-black text-purple-800 flex items-center gap-2">🚀 3. 牛頓第二定律</h2>
-                        <p className="text-slate-600 mt-2 mb-4 font-medium">只要有「淨力」，物體就會「加速」。</p>
-                        <div className="bg-white p-4 rounded-lg border-2 border-purple-200 text-center">
-                            <div className="text-3xl font-black text-purple-600 tracking-wider">F = m × a</div>
-                            <div className="text-xl font-bold text-slate-500 mt-2">( 淨力 = 質量 × 加速度 )</div>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const renderPractice = () => (
-                <div className="space-y-4">
-                    {/* 題目區 */}
-                    <div className="bg-indigo-50 p-5 rounded-2xl border-2 border-indigo-200 shadow-sm relative">
-                        <div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-xl">無限題庫</div>
-                        <h2 className="text-xl font-bold text-indigo-900 mb-2">📝 實戰練習</h2>
-                        <p className="text-indigo-800 text-lg font-medium leading-relaxed">
-                            {qType === 'weight' && `一架質量為 ${qParams.m} kg 的火箭，它在地球上的重量是多少 N？`}
-                            {qType === 'netForce' && `一架質量為 ${qParams.m} kg 的火箭，引擎產生了向上的推力 ${qParams.f} N。請問火箭的淨力大小是多少 N？`}
-                            {qType === 'accel' && `一架質量為 ${qParams.m} kg 的火箭，引擎產生了向上的推力 ${qParams.f} N。請問火箭的加速度大小是多少 m/s²？`}
-                            {qType === 'hover' && `一架質量為 ${qParams.m} kg 的無人機要在半空「懸停」(靜止不動)。它需要產生多少 N 的向上推力？`}
-                        </p>
-                        
-                        <div className="mt-4 bg-white p-3 rounded-xl border border-indigo-100 flex items-center gap-3">
-                            <input 
-                                type="number" 
-                                value={userAns} 
-                                onChange={(e) => setUserAns(e.target.value)} 
-                                placeholder="輸入你的答案..."
-                                className="flex-1 bg-slate-100 border-none rounded-lg px-4 py-3 font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-400 outline-none"
-                            />
-                            <button 
-                                onClick={checkAnswer}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md whitespace-nowrap"
-                            >
-                                提交答案
-                            </button>
-                        </div>
-
-                        {/* 回饋訊息 */}
-                        {feedback && (
-                            <div className={`mt-4 p-4 rounded-xl font-bold text-lg border-2 ${feedback.isCorrect ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-50 text-red-800 border-red-200'}`}>
-                                {feedback.text}
-                                {feedback.isCorrect && (
-                                    <button 
-                                        onClick={generateQuestion}
-                                        className="mt-3 block w-full bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition shadow-sm"
-                                    >
-                                        👉 下一題
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* 教學提示 */}
-                    <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200 text-yellow-800 font-medium text-sm flex gap-3 items-start">
-                        <span className="text-2xl">💡</span>
-                        <p>
-                            <strong>不懂怎麼算？做個實驗吧！</strong><br/>
-                            請在下方的「手動控制面板」中，把 <strong className="text-blue-700">質量調成 {qParams.m} kg</strong>，
-                            {qType !== 'hover' && qType !== 'weight' ? <span className="text-blue-700"><strong> 推力調成 {qParams.f} N</strong>，</span> : ''} 
-                            然後觀察左邊畫面上<strong>紅藍箭頭的數值</strong>，以及綠色框框顯示的<strong>淨力</strong>，答案就藏在裡面！
-                        </p>
-                    </div>
-                </div>
-            );
-
-            return (
-                <div className="min-h-screen p-4 font-sans text-slate-800 pb-12">
-                    <div className="max-w-6xl mx-auto">
-                        <header className="mb-6 text-center">
-                            <h1 className="text-2xl md:text-3xl font-black text-slate-800 flex items-center justify-center gap-2">
-                                🚀 重量與牛頓第二定律學習站
-                            </h1>
-                        </header>
-
-                        {/* 分頁導航列 */}
-                        <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-hidden max-w-2xl mx-auto">
-                            <button 
-                                onClick={() => setActiveTab('lab')} 
-                                className={`flex-1 py-3 text-center font-bold transition ${activeTab === 'lab' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                🧪 自由實驗室
-                            </button>
-                            <button 
-                                onClick={() => setActiveTab('formulas')} 
-                                className={`flex-1 py-3 text-center font-bold transition border-l border-r border-slate-200 ${activeTab === 'formulas' ? 'bg-purple-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                📖 公式溫習
-                            </button>
-                            <button 
-                                onClick={() => setActiveTab('practice')} 
-                                className={`flex-1 py-3 text-center font-bold transition ${activeTab === 'practice' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                📝 互動練習
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                            {/* 左側：動畫視覺區 (共用) */}
-                            <div className="lg:col-span-5 bg-white rounded-2xl shadow-lg border-2 border-slate-200 overflow-hidden flex flex-col relative h-[500px] md:h-[650px]">
-                                <div className={`absolute inset-0 transition-colors duration-1000 ${gravity === 1.6 ? 'bg-slate-900' : 'bg-sky-100'}`}>
-                                    {gravity === 1.6 && <div className="absolute top-4 left-4 text-slate-300 font-bold text-sm">🌌 月球表面 (重力較弱)</div>}
-                                    {gravity === 9.8 && <div className="absolute top-4 left-4 text-sky-700 font-bold text-sm">🌍 地球表面</div>}
-                                </div>
-                                
-                                <div className="flex-grow relative flex justify-center">
-                                    <div className="absolute" style={{ bottom: `${pos + 40}px`, transition: isPlaying ? 'none' : 'bottom 0.5s ease-out' }}>
-                                        {/* 向上推力 */}
-                                        {thrust > 0 && (
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 flex flex-col items-center mb-1">
-                                                <div className="text-blue-700 font-bold text-sm md:text-base bg-white/90 px-2 rounded shadow-sm whitespace-nowrap">
-                                                    推力 {thrust.toFixed(0)} N
-                                                </div>
-                                                <div className="w-2 md:w-3 bg-blue-500 rounded-t-sm origin-bottom" style={{ height: `${thrust * forceScale}px`, minHeight: '10px' }}></div>
-                                                <div className="text-blue-600 -mt-3 z-10 text-xl md:text-2xl">⬆️</div>
-                                            </div>
-                                        )}
-
-                                        {/* 火箭本體 */}
-                                        <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-800 rounded-xl flex items-center justify-center text-white shadow-xl relative z-20 border-4 border-slate-700 text-3xl md:text-4xl">
-                                            🚀
-                                        </div>
-
-                                        {/* 向下重量 */}
-                                        {weight > 0 && (
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 flex flex-col items-center mt-1">
-                                                <div className="text-red-500 -mb-3 z-10 text-xl md:text-2xl">⬇️</div>
-                                                <div className="w-2 md:w-3 bg-red-500 rounded-b-sm origin-top" style={{ height: `${weight * forceScale}px`, minHeight: '10px' }}></div>
-                                                <div className="text-red-700 font-bold text-sm md:text-base bg-white/90 px-2 rounded shadow-sm whitespace-nowrap mt-1">
-                                                    重量 {weight.toFixed(0)} N
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* 淨力 */}
-                                        {netForce !== 0 && (
-                                            <div className={`absolute top-1/2 ${netForce > 0 ? '-mt-10' : 'mt-10'} left-full ml-4 flex items-center gap-1 opacity-90`}>
-                                                <span className="text-lg md:text-xl">{netForce > 0 ? '⬆️' : '⬇️'}</span>
-                                                <span className="text-green-800 font-black bg-green-200 px-2 md:px-3 py-1 rounded-lg text-sm md:text-base whitespace-nowrap border-2 border-green-400 shadow-sm">
-                                                    淨力: {Math.abs(netForce).toFixed(0)} N
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className={`h-12 w-full z-10 transition-colors duration-1000 border-t-4 border-black/20 ${gravity === 1.6 ? 'bg-slate-600' : 'bg-emerald-600'}`}></div>
-                            </div>
-
-                            {/* 右側：動態內容區 */}
-                            <div className="lg:col-span-7 flex flex-col gap-4">
-                                
-                                {/* 根據 Tab 顯示不同上半部內容 */}
-                                {activeTab === 'lab' && renderLab()}
-                                {activeTab === 'formulas' && renderFormulas()}
-                                {activeTab === 'practice' && renderPractice()}
-
-                                {/* 共用的手動控制面板 (公式區可選擇隱藏，但為了方便隨時做實驗，保留在最下方) */}
-                                {activeTab !== 'formulas' && (
-                                    <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border-2 border-slate-200 mt-2">
-                                        <h2 className="text-lg font-bold text-slate-800 mb-4">🎛️ 手動控制面板 (實驗區)</h2>
-                                        <div className="space-y-6">
-                                            <div>
-                                                <div className="flex justify-between mb-2">
-                                                    <label className="font-bold text-slate-700">📦 物體質量 (m)</label>
-                                                    <span className="text-blue-700 font-bold bg-blue-100 px-3 py-1 rounded-md">{mass} kg</span>
-                                                </div>
-                                                <input type="range" min="1" max="50" step="1" value={mass} onChange={(e) => setMass(Number(e.target.value))} className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between mb-2">
-                                                    <label className="font-bold text-slate-700">🚀 向上推力 (F)</label>
-                                                    <span className="text-blue-700 font-bold bg-blue-100 px-3 py-1 rounded-md">{thrust} N</span>
-                                                </div>
-                                                <input type="range" min="0" max="400" step="1" value={thrust} onChange={(e) => setThrust(Number(e.target.value))} className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-slate-200">
-                                            <button onClick={() => setIsPlaying(!isPlaying)} className={`flex-1 py-3 rounded-xl font-bold text-white text-lg flex justify-center items-center gap-2 transition shadow-md ${isPlaying ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}>
-                                                {isPlaying ? <>⏸️ 暫停動畫</> : <>▶️ 開始播放</>}
-                                            </button>
-                                            <button onClick={reset} className="px-6 py-3 rounded-xl font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition flex items-center justify-center gap-2">
-                                                🔄 重置位置
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
+      if (state.simData.s >= trackLength) {
+        stopNow = true;
+      } else {
+        let currentA = (state.force - state.friction) / state.mass;
+        if (currentA < 0 && state.simData.v <= 0.01) {
+          currentA = 0;
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+        let newV = state.simData.v + currentA * dt;
+        if (newV < 0) {
+          newV = 0;
+          currentA = 0;
+        }
+
+        let newS = state.simData.s + newV * dt;
+        let newT = state.simData.t + dt;
+
+        if (newS >= trackLength) {
+          newS = trackLength;
+          stopNow = true;
+        }
+
+        state.simData = { t: newT, s: newS, v: newV, a: currentA };
+        state.history.push(state.simData);
+      }
+
+      updateUI();
+
+      if (!stopNow && state.isAnimating) {
+        animationFrameId = requestAnimationFrame(animate);
+      } else {
+        state.isAnimating = false;
+        lastTimestamp = null;
+        updateUI();
+      }
+    }
+
+    // --- 核心更新 UI 邏輯 ---
+    function updateUI() {
+      // 面板控制數值
+      els.lblForce.textContent = `${state.force} N`;
+      els.lblFriction.textContent = `${state.friction} N`;
+      els.lblMass.textContent = `${state.mass} kg`;
+      
+      els.inpForce.value = state.force;
+      els.inpFriction.value = state.friction;
+      els.inpMass.value = state.mass;
+
+      // 判斷按鈕狀態
+      const isStuck = state.simData.v === 0 && state.force <= state.friction;
+      const finished = state.simData.s >= trackLength;
+      
+      els.btnStart.disabled = state.isAnimating || finished || isStuck;
+      els.txtStartBtn.textContent = isStuck ? '推不動！' : '開始推動';
+
+      // 探索模式的公式面板
+      const effectiveFriction = (state.simData.v === 0 && state.force < state.friction) ? state.force : state.friction;
+      const displayA = (state.force - effectiveFriction) / state.mass;
+      
+      els.fmlaForce.textContent = state.force;
+      els.fmlaFriction.textContent = effectiveFriction;
+      els.fmlaMass.textContent = state.mass;
+      els.fmlaA.textContent = displayA.toFixed(2);
+      els.valV.textContent = state.simData.v.toFixed(2);
+      els.valT.textContent = state.simData.t.toFixed(2);
+
+      // 動畫畫面更新
+      const positionPercent = Math.min((state.simData.s / trackLength) * 85, 85);
+      els.animContainer.style.left = `${positionPercent}%`;
+      
+      const boxSize = 40 + state.mass * 4;
+      els.massBox.style.width = `${boxSize}px`;
+      els.massBox.style.height = `${boxSize}px`;
+      els.massBoxLbl.textContent = `${state.mass}kg`;
+
+      // 推力與摩擦力箭頭
+      if (state.isAnimating || state.simData.t === 0 || state.force > 0) {
+        els.forceArrow.classList.remove('hidden');
+        els.forceArrowLbl.textContent = `推力 ${state.force}N`;
+        els.forceArrowLine.style.width = `${30 + state.force * 5}px`;
+      } else {
+        els.forceArrow.classList.add('hidden');
+      }
+
+      if (state.friction > 0) {
+        els.frictionArrow.classList.remove('hidden');
+        els.frictionArrowLbl.textContent = `摩擦 ${state.friction}N`;
+        els.frictionArrowLine.style.width = `${30 + state.friction * 5}px`;
+      } else {
+        els.frictionArrow.classList.add('hidden');
+      }
+
+      // 繪製圖表
+      renderGraphs();
+    }
+
+    // --- 事件綁定與功能 ---
+    function setMode(newMode) {
+      state.mode = newMode;
+      if (newMode === 'explore') {
+        els.btnExplore.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors bg-white text-blue-700 font-bold";
+        els.btnPractice.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-blue-100 hover:bg-blue-700/50";
+        els.panelExplore.classList.remove('hidden');
+        els.panelPractice.classList.add('hidden');
+        els.practiceHint.classList.add('hidden');
+      } else {
+        els.btnPractice.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors bg-white text-blue-700 font-bold";
+        els.btnExplore.className = "flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-blue-100 hover:bg-blue-700/50";
+        els.panelPractice.classList.remove('hidden');
+        els.panelExplore.classList.add('hidden');
+        els.practiceHint.classList.remove('hidden');
+        if (!state.qData) generateQuestion();
+      }
+    }
+
+    els.btnExplore.addEventListener('click', () => setMode('explore'));
+    els.btnPractice.addEventListener('click', () => setMode('practice'));
+
+    // 滑桿事件 (直接改變 state，動畫迴圈會實時抓取)
+    els.inpForce.addEventListener('input', (e) => { state.force = Number(e.target.value); updateUI(); });
+    els.inpFriction.addEventListener('input', (e) => { state.friction = Number(e.target.value); updateUI(); });
+    els.inpMass.addEventListener('input', (e) => { state.mass = Number(e.target.value); updateUI(); });
+
+    els.btnStart.addEventListener('click', () => {
+      if (state.simData.s >= trackLength) {
+        handleReset();
+      }
+      state.isAnimating = true;
+      lastTimestamp = null;
+      animationFrameId = requestAnimationFrame(animate);
+      updateUI();
+    });
+
+    els.btnReset.addEventListener('click', handleReset);
+
+    function handleReset() {
+      state.isAnimating = false;
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      state.simData = { t: 0, s: 0, v: 0, a: 0 };
+      state.history = [{ t: 0, s: 0, v: 0, a: 0 }];
+      updateUI();
+    }
+
+    // --- 練習任務邏輯 ---
+    function generateQuestion() {
+      const types = ['find_a', 'find_F', 'find_m'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      let m, a, f, F;
+      do {
+        m = Math.floor(Math.random() * 4) + 1; 
+        a = Math.floor(Math.random() * 3) + 1; 
+        f = Math.floor(Math.random() * 4);     
+        F = m * a + f;
+      } while (F > 20 || F < 1);
+
+      state.qData = { type, m, a, f, F };
+      els.inpAns.value = '';
+      setQStatus('idle');
+      
+      // 更新題目文字
+      if (type === 'find_a') {
+        els.qText.innerHTML = `設定：推力 <strong class="text-red-600">${F}N</strong>、摩擦力 <strong class="text-orange-500">${f}N</strong>、質量 <strong class="text-blue-600">${m}kg</strong>。此時的 <strong>加速度 (a)</strong> 是多少？`;
+        els.lblAnsUnit.textContent = 'm/s²';
+      } else if (type === 'find_F') {
+        els.qText.innerHTML = `質量 <strong class="text-blue-600">${m}kg</strong>、摩擦力 <strong class="text-orange-500">${f}N</strong>。若要產生 <strong class="text-green-600">${a} m/s²</strong> 的加速度，<strong>推力 (F)</strong> 需要多少？`;
+        els.lblAnsUnit.textContent = 'N';
+      } else {
+        els.qText.innerHTML = `推力 <strong class="text-red-600">${F}N</strong>、摩擦力 <strong class="text-orange-500">${f}N</strong> 產生了 <strong class="text-green-600">${a} m/s²</strong> 的加速度。<strong>質量 (m)</strong> 是多少？`;
+        els.lblAnsUnit.textContent = 'kg';
+      }
+
+      state.force = 5; state.friction = 0; state.mass = 2;
+      handleReset();
+    }
+
+    function setQStatus(status) {
+      state.qStatus = status;
+      if (status === 'correct') {
+        els.fbCorrect.classList.remove('hidden');
+        els.fbWrong.classList.add('hidden');
+      } else if (status === 'wrong') {
+        els.fbWrong.classList.remove('hidden');
+        els.fbCorrect.classList.add('hidden');
+      } else {
+        els.fbCorrect.classList.add('hidden');
+        els.fbWrong.classList.add('hidden');
+      }
+    }
+
+    els.btnSubmitAns.addEventListener('click', () => {
+      const val = parseFloat(els.inpAns.value);
+      if (isNaN(val)) return;
+      let target = state.qData.type === 'find_a' ? state.qData.a : (state.qData.type === 'find_F' ? state.qData.F : state.qData.m);
+      setQStatus(val === target ? 'correct' : 'wrong');
+    });
+
+    els.inpAns.addEventListener('input', () => setQStatus('idle'));
+    els.btnNextQ.addEventListener('click', generateQuestion);
+
+    // --- 啟動 ---
+    initGraphs();
+    updateUI();
+
+  </script>
 </body>
 </html>
