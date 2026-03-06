@@ -30,6 +30,9 @@
     --section2-color: #00873e;
     --section2-bg: rgba(0, 135, 62, 0.1);
     --section2-hover-shadow: rgba(0, 135, 62, 0.15);
+    --section3-color: #1565c0;
+    --section3-bg: rgba(21, 101, 192, 0.1);
+    --section3-hover-shadow: rgba(21, 101, 192, 0.15);
     --formula-color: rgba(92, 45, 224, 0.2);
     --back-hover-bg: rgba(43, 111, 242, 0.08);
   }
@@ -57,6 +60,9 @@
     --section2-color: #69f0ae;
     --section2-bg: rgba(0, 200, 83, 0.15);
     --section2-hover-shadow: rgba(0, 200, 83, 0.2);
+    --section3-color: #42a5f5;
+    --section3-bg: rgba(66, 165, 245, 0.15);
+    --section3-hover-shadow: rgba(66, 165, 245, 0.2);
     --formula-color: rgba(124, 77, 255, 0.25);
     --back-hover-bg: rgba(68, 138, 255, 0.1);
   }
@@ -412,6 +418,10 @@
     background: var(--section2-color);
   }
 
+  .section-card:nth-child(3)::before {
+    background: var(--section3-color);
+  }
+
   .section-card::after {
     content: '';
     position: absolute;
@@ -428,6 +438,10 @@
     background: radial-gradient(circle at 80% 50%, var(--section2-hover-shadow), transparent 60%);
   }
 
+  .section-card:nth-child(3)::after {
+    background: radial-gradient(circle at 80% 50%, var(--section3-hover-shadow), transparent 60%);
+  }
+
   .section-card:hover {
     background: var(--card-hover-bg);
     transform: translateY(-3px);
@@ -442,6 +456,11 @@
   .section-card:nth-child(2):hover {
     border-color: var(--section2-color);
     box-shadow: 0 12px 40px var(--section2-hover-shadow);
+  }
+
+  .section-card:nth-child(3):hover {
+    border-color: var(--section3-color);
+    box-shadow: 0 12px 40px var(--section3-hover-shadow);
   }
 
   .section-card:hover::before { width: 6px; }
@@ -480,6 +499,11 @@
     color: var(--section2-color);
   }
 
+  .section-card:nth-child(3) .section-icon {
+    background: var(--section3-bg);
+    color: var(--section3-color);
+  }
+
   .section-icon i {
     font-size: 1.25rem;
   }
@@ -499,6 +523,7 @@
 
   .section-card:nth-child(1) .section-num { color: var(--section1-color); }
   .section-card:nth-child(2) .section-num { color: var(--section2-color); }
+  .section-card:nth-child(3) .section-num { color: var(--section3-color); }
 
   .section-title {
     font-size: 1.1rem;
@@ -532,6 +557,11 @@
   .section-card:nth-child(2) .section-arrow {
     background: var(--section2-bg);
     color: var(--section2-color);
+  }
+
+  .section-card:nth-child(3) .section-arrow {
+    background: var(--section3-bg);
+    color: var(--section3-color);
   }
 
   .section-arrow i {
@@ -581,6 +611,7 @@
   .stagger-2 { animation-delay: 0.2s; }
   .stagger-3 { animation-delay: 0.3s; }
   .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
 
   .fade-up {
     opacity: 0;
@@ -659,6 +690,26 @@
 
     <div class="section-cards">
       <a class="section-card fade-up stagger-3"
+         href="https://leungsiulong.github.io/s4physics/力"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Ch3.1 力">
+        <div class="section-inner">
+          <div class="section-icon">
+            <i class="fas fa-hand-fist"></i>
+          </div>
+          <div class="section-info">
+            <div class="section-num">SECTION 3.1</div>
+            <div class="section-title">力</div>
+            <div class="section-desc">Force</div>
+          </div>
+          <div class="section-arrow">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </a>
+
+      <a class="section-card fade-up stagger-4"
          href="https://leungsiulong.github.io/s4physics/牛頓第二運動定律"
          target="_blank"
          rel="noopener noreferrer"
@@ -678,7 +729,7 @@
         </div>
       </a>
 
-      <a class="section-card fade-up stagger-4"
+      <a class="section-card fade-up stagger-5"
          href="https://leungsiulong.github.io/s4physics/重量與牛頓第二定律"
          target="_blank"
          rel="noopener noreferrer"
