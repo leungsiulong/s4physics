@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>力的世界 — 互動學習實驗室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --card-bg: #ffffff; --card-border: #e2e8f0; --surface: #f8fafc;
+            --text-primary: #1e293b; --text-secondary: #64748b;
+            --accent-blue: #2563eb; --accent-indigo: #4f46e5;
+            --quiz-bg: #fffbeb; --quiz-border: #fcd34d; --quiz-text: #92400e;
+            --quiz-q-bg: #ffffff; --quiz-q-border: #fde68a;
+            --opt-bg: #ffffff; --opt-border: #e2e8f0; --opt-hover-bg: #eff6ff; --opt-hover-border: #93c5fd;
+        }
+        .dark {
+            --card-bg: #1e293b; --card-border: #334155; --surface: #0f172a;
+            --text-primary: #f1f5f9; --text-secondary: #94a3b8;
+            --accent-blue: #60a5fa; --accent-indigo: #818cf8;
+            --quiz-bg: #1c1917; --quiz-border: #854d0e; --quiz-text: #fbbf24;
+            --quiz-q-bg: #1e293b; --quiz-q-border: #854d0e;
+            --opt-bg: #1e293b; --opt-border: #475569; --opt-hover-bg: #1e3a5f; --opt-hover-border: #60a5fa;
+        }
+        * { font-family: 'Noto Sans TC', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+
+        .flashcard-container { perspective: 1200px; }
+        .flashcard-inner {
+            position: relative; width: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .flashcard-inner.flipped { transform: rotateY(180deg); }
+        .flashcard-front, .flashcard-back {
+            backface-visibility: hidden; -webkit-backface-visibility: hidden;
+        }
+        .flashcard-back { transform: rotateY(180deg); }
+
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
+        .slide-in-right { animation: slideInRight 0.4s ease-out; }
+        .slide-in-left { animation: slideInLeft 0.4s ease-out; }
+
+        .progress-dot { transition: all 0.3s ease; }
+        .progress-dot.active { transform: scale(1.4); }
+
+        @keyframes pulseSoft { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+        .pulse-soft { animation: pulseSoft 2s ease-in-out infinite; }
+
+        .dark .katex { color: #f1f5f9; }
+
+        .flashcard-overlay {
+            position: fixed; inset: 0; z-index: 999;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .flashcard-lifted { position: relative; z-index: 1000; }
+
+        @media (max-width: 768px) {
+            .flashcard-container { min-height: 380px !important; }
+            .flashcard-container > div > div { min-height: 380px !important; }
+        }
+
+        .quiz-opt {
+            background: var(--opt-bg); border: 2px solid var(--opt-border);
+            color: var(--text-primary); transition: all 0.2s ease;
+        }
+        .quiz-opt:not(:disabled):hover {
+            background: var(--opt-hover-bg); border-color: var(--opt-hover-border);
+        }
+        .quiz-opt:disabled { cursor: default; }
+        .quiz-opt.correct { background: #dcfce7; border-color: #22c55e; color: #166534; }
+        .quiz-opt.wrong { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        .quiz-opt.dimmed { opacity: 0.45; }
+        .dark .quiz-opt.correct { background: #14532d; border-color: #22c55e; color: #86efac; }
+        .dark .quiz-opt.wrong { background: #450a0a; border-color: #ef4444; color: #fca5a5; }
+
+        @keyframes scorePopIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            70% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .score-pop { animation: scorePopIn 0.35s ease-out; }
+
+        @keyframes bounceArrow {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .bounce-arrow { animation: bounceArrow 1.2s ease-in-out infinite; }
+
+        @keyframes wiggle {
+            0%,100% { transform: rotate(0deg); }
+            25% { transform: rotate(-3deg); }
+            75% { transform: rotate(3deg); }
+        }
+        .wiggle { animation: wiggle 0.8s ease-in-out infinite; }
+
+        @keyframes floatUp {
+            0% { opacity:0; transform: translateY(20px); }
+            100% { opacity:1; transform: translateY(0); }
+        }
+        .float-up { animation: floatUp 0.5s ease-out forwards; }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 0.5; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        .pulse-ring::after {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            border: 2px solid currentColor; animation: pulse-ring 1.5s ease-out infinite;
+        }
+
+        .svg-handle:hover { filter: brightness(1.2); }
+
+        .force-arrow-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
+        @media (max-width: 640px) { .force-arrow-label { font-size: 9px; } }
+
+        @keyframes sparkle {
+            0%,100% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8" style="background:var(--surface);color:var(--text-primary);">
+    <div id="root"></div>
+    <script>
+        var html = htm.bind(React.createElement);
+        var useState = React.useState, useEffect = React.useEffect,
+            useRef = React.useRef, useCallback = React.useCallback;
+
+        /* ===== Dark mode ===== */
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+            if (e.matches) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        });
+
+        /* ===== KaTeX ===== */
+        function LatexFormula(props) {
+            var ref = useRef(null);
+            useEffect(function() {
+                if (window.katex && ref.current) {
+                    window.katex.render(props.tex, ref.current, { displayMode: props.display !== false, throwOnError: false });
+                }
+            }, [props.tex, props.display]);
+            return html`<span ref=${ref} className="my-1 inline-block"></span>`;
+        }
+
+        /* ===== SVG Diagrams ===== */
+        function DiagForce() {
+            return html`<svg viewBox="0 0 280 180" className="w-full max-w-[260px] mx-auto">
+                <defs>
+                    <marker id="aB1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker>
+                </defs>
+                <rect x="100" y="70" width="80" height="60" rx="8" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+                <text x="140" y="107" text-anchor="middle" fill="white" font-weight="bold" font-size="14">${"箱子"}</text>
+                <line x1="100" y1="100" x2="30" y2="100" stroke="#3b82f6" stroke-width="3.5" marker-end="url(#aB1)"/>
+                <text x="50" y="90" fill="#3b82f6" font-weight="bold" font-size="12">${"推力"}</text>
+                <circle cx="215" cy="90" r="18" fill="#10b981" opacity="0.2" stroke="#10b981" stroke-width="1.5"/>
+                <text x="215" y="85" text-anchor="middle" fill="#059669" font-weight="bold" font-size="9">${"推/拉"}</text>
+                <text x="215" y="97" text-anchor="middle" fill="#059669" font-size="8">${"作用"}</text>
+                <text x="140" y="160" text-anchor="middle" fill="#64748b" font-size="10">${"力 = 推或拉的作用（矢量）"}</text>
+                <text x="140" y="175" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="10">${"單位：牛頓 (N)"}</text>
+            </svg>`;
+        }
+        function DiagForcePair() {
+            return html`<svg viewBox="0 0 300 180" className="w-full max-w-[280px] mx-auto">
+                <defs>
+                    <marker id="aPairR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ef4444"/></marker>
+                    <marker id="aPairB" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker>
+                </defs>
+                <circle cx="80" cy="80" r="30" fill="#60a5fa" stroke="#2563eb" stroke-width="2"/>
+                <text x="80" y="75" text-anchor="middle" fill="white" font-weight="bold" font-size="11">${"你"}</text>
+                <text x="80" y="90" text-anchor="middle" fill="white" font-size="9">${"(施力者)"}</text>
+                <rect x="170" y="55" width="70" height="50" rx="6" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+                <text x="205" y="85" text-anchor="middle" fill="white" font-weight="bold" font-size="11">${"行李箱"}</text>
+                <line x1="110" y1="72" x2="165" y2="72" stroke="#ef4444" stroke-width="3" marker-end="url(#aPairR)"/>
+                <text x="138" y="65" text-anchor="middle" fill="#ef4444" font-weight="bold" font-size="10">${"你推它"}</text>
+                <line x1="170" y1="92" x2="115" y2="92" stroke="#3b82f6" stroke-width="3" marker-end="url(#aPairB)"/>
+                <text x="142" y="108" text-anchor="middle" fill="#3b82f6" font-weight="bold" font-size="10">${"它推你"}</text>
+                <rect x="60" y="130" width="180" height="30" rx="6" fill="#8b5cf6" opacity="0.1" stroke="#8b5cf6" stroke-width="1"/>
+                <text x="150" y="150" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="11">${"力是成對出現的！"}</text>
+            </svg>`;
+        }
+        function DiagNewton() {
+            return html`<svg viewBox="0 0 300 200" className="w-full max-w-[280px] mx-auto">
+                <rect x="20" y="30" width="80" height="55" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+                <text x="60" y="52" text-anchor="middle" fill="#92400e" font-weight="bold" font-size="9">${"蝴蝶重量"}</text>
+                <text x="60" y="68" text-anchor="middle" fill="#d97706" font-weight="bold" font-size="14">${"0.001 N"}</text>
+                <rect x="110" y="30" width="80" height="55" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="150" y="52" text-anchor="middle" fill="#1e40af" font-weight="bold" font-size="9">${"手機重量"}</text>
+                <text x="150" y="68" text-anchor="middle" fill="#2563eb" font-weight="bold" font-size="14">${"≈ 2 N"}</text>
+                <rect x="200" y="30" width="80" height="55" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+                <text x="240" y="52" text-anchor="middle" fill="#9d174d" font-weight="bold" font-size="9">${"空手道拳力"}</text>
+                <text x="240" y="68" text-anchor="middle" fill="#ec4899" font-weight="bold" font-size="14">${"1000 N"}</text>
+                <rect x="20" y="100" width="120" height="40" rx="6" fill="#d1fae5" stroke="#10b981" stroke-width="1.5"/>
+                <text x="80" y="117" text-anchor="middle" fill="#065f46" font-weight="bold" font-size="10">${"彈簧秤量度力"}</text>
+                <text x="80" y="132" text-anchor="middle" fill="#10b981" font-size="9">${"拉鈎子讀數值"}</text>
+                <rect x="160" y="100" width="120" height="40" rx="6" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+                <text x="220" y="117" text-anchor="middle" fill="#5b21b6" font-weight="bold" font-size="10">${"力感應器"}</text>
+                <text x="220" y="132" text-anchor="middle" fill="#8b5cf6" font-size="9">${"電子量度更準確"}</text>
+                <text x="150" y="170" text-anchor="middle" fill="#64748b" font-weight="bold" font-size="11">${"力的單位：牛頓 (N)"}</text>
+                <text x="150" y="188" text-anchor="middle" fill="#94a3b8" font-size="10">${"以科學家牛頓的名字命名"}</text>
+            </svg>`;
+        }
+        function DiagFriction() {
+            return html`<svg viewBox="0 0 280 180" className="w-full max-w-[260px] mx-auto">
+                <defs>
+                    <marker id="aFR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ef4444"/></marker>
+                    <marker id="aFB" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker>
+                </defs>
+                <line x1="20" y1="110" x2="260" y2="110" stroke="#94a3b8" stroke-width="3"/>
+                <path d="M20,110 Q30,115 40,110 Q50,115 60,110 Q70,115 80,110 Q90,115 100,110 Q110,115 120,110 Q130,115 140,110 Q150,115 160,110 Q170,115 180,110 Q190,115 200,110 Q210,115 220,110 Q230,115 240,110 Q250,115 260,110" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+                <rect x="90" y="65" width="80" height="45" rx="6" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+                <text x="130" y="92" text-anchor="middle" fill="white" font-weight="bold" font-size="12">${"箱子"}</text>
+                <line x1="170" y1="88" x2="230" y2="88" stroke="#3b82f6" stroke-width="3" marker-end="url(#aFB)"/>
+                <text x="200" y="80" fill="#3b82f6" font-weight="bold" font-size="11">${"推力"}</text>
+                <line x1="90" y1="88" x2="40" y2="88" stroke="#ef4444" stroke-width="3" marker-end="url(#aFR)"/>
+                <text x="55" y="80" fill="#ef4444" font-weight="bold" font-size="11">${"摩擦力 f"}</text>
+                <text x="140" y="140" text-anchor="middle" fill="#64748b" font-weight="bold" font-size="10">${"摩擦力方向 ← 永遠相反於運動方向 →"}</text>
+                <text x="140" y="158" text-anchor="middle" fill="#94a3b8" font-size="10">${"粗糙表面 → 有摩擦力"}</text>
+                <text x="140" y="172" text-anchor="middle" fill="#94a3b8" font-size="10">${"平滑表面 → 無摩擦力"}</text>
+            </svg>`;
+        }
+        function DiagNormal() {
+            return html`<svg viewBox="0 0 260 200" className="w-full max-w-[240px] mx-auto">
+                <defs>
+                    <marker id="aNR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ef4444"/></marker>
+                    <marker id="aNG" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#22c55e"/></marker>
+                </defs>
+                <line x1="30" y1="130" x2="230" y2="130" stroke="#94a3b8" stroke-width="4"/>
+                <rect x="30" y="130" width="200" height="15" rx="2" fill="#d1d5db" opacity="0.5"/>
+                <rect x="90" y="75" width="80" height="55" rx="6" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2"/>
+                <text x="130" y="107" text-anchor="middle" fill="white" font-weight="bold" font-size="12">${"物體"}</text>
+                <line x1="130" y1="130" x2="130" y2="180" stroke="#ef4444" stroke-width="3.5" marker-end="url(#aNR)"/>
+                <text x="155" y="168" fill="#ef4444" font-weight="bold" font-size="12">${"重量 W"}</text>
+                <line x1="130" y1="75" x2="130" y2="25" stroke="#22c55e" stroke-width="3.5" marker-end="url(#aNG)"/>
+                <text x="155" y="42" fill="#22c55e" font-weight="bold" font-size="12">${"法向力 R"}</text>
+                <text x="130" y="16" text-anchor="middle" fill="#059669" font-size="9">${"⬆ 垂直於表面"}</text>
+                <text x="130" y="195" text-anchor="middle" fill="#64748b" font-size="10">${"法向力 = 表面對物體的支撐力"}</text>
+            </svg>`;
+        }
+        function DiagTension() {
+            return html`<svg viewBox="0 0 280 170" className="w-full max-w-[260px] mx-auto">
+                <defs>
+                    <marker id="aTL" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+                    <marker id="aTR" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto"><path d="M8,0 L0,4 L8,8 Z" fill="#f59e0b"/></marker>
+                </defs>
+                <rect x="40" y="45" width="200" height="6" rx="3" fill="#94a3b8" stroke="#64748b" stroke-width="1"/>
+                <circle cx="40" cy="48" r="15" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2"/>
+                <text x="40" y="52" text-anchor="middle" fill="white" font-weight="bold" font-size="9">${"A"}</text>
+                <circle cx="240" cy="48" r="15" fill="#ef4444" stroke="#b91c1c" stroke-width="2"/>
+                <text x="240" y="52" text-anchor="middle" fill="white" font-weight="bold" font-size="9">${"B"}</text>
+                <line x1="55" y1="48" x2="100" y2="48" stroke="#f59e0b" stroke-width="3" marker-end="url(#aTR)"/>
+                <line x1="225" y1="48" x2="180" y2="48" stroke="#f59e0b" stroke-width="3" marker-end="url(#aTL)"/>
+                <text x="80" y="38" fill="#f59e0b" font-weight="bold" font-size="10">${"T →"}</text>
+                <text x="195" y="38" fill="#f59e0b" font-weight="bold" font-size="10">${"← T"}</text>
+                <text x="140" y="90" text-anchor="middle" fill="#64748b" font-weight="bold" font-size="11">${"張力沿繩索方向"}</text>
+                <text x="140" y="110" text-anchor="middle" fill="#94a3b8" font-size="10">${"繩子拉直時，每一點的張力都相同"}</text>
+                <rect x="60" y="125" width="160" height="28" rx="6" fill="#f59e0b" opacity="0.1" stroke="#f59e0b" stroke-width="1"/>
+                <text x="140" y="144" text-anchor="middle" fill="#d97706" font-weight="bold" font-size="10">${"拔河時感受到的就是張力！"}</text>
+            </svg>`;
+        }
+        function DiagWeight() {
+            return html`<svg viewBox="0 0 260 200" className="w-full max-w-[240px] mx-auto">
+                <defs>
+                    <marker id="aWR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ef4444"/></marker>
+                </defs>
+                <circle cx="130" cy="130" r="40" fill="#60a5fa" opacity="0.15" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="130" y="135" text-anchor="middle" fill="#2563eb" font-weight="bold" font-size="10">${"地球"}</text>
+                <circle cx="130" cy="60" r="18" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+                <text x="130" y="65" text-anchor="middle" fill="white" font-weight="bold" font-size="10">${"物體"}</text>
+                <line x1="130" y1="78" x2="130" y2="85" stroke="#ef4444" stroke-width="3.5" marker-end="url(#aWR)"/>
+                <text x="160" y="88" fill="#ef4444" font-weight="bold" font-size="11">${"W ↓"}</text>
+                <text x="130" y="20" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="10">${"不用接觸也有力！"}</text>
+                <text x="130" y="185" text-anchor="middle" fill="#64748b" font-size="10">${"重量 = 地球對物體的引力（向下）"}</text>
+                <text x="130" y="200" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="10">${"W = mg"}</text>
+            </svg>`;
+        }
+        function DiagFBD() {
+            return html`<svg viewBox="0 0 300 220" className="w-full max-w-[280px] mx-auto">
+                <defs>
+                    <marker id="aFBDR" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#ef4444"/></marker>
+                    <marker id="aFBDG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#22c55e"/></marker>
+                    <marker id="aFBDB" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#3b82f6"/></marker>
+                    <marker id="aFBDO" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#f59e0b"/></marker>
+                </defs>
+                <text x="80" y="18" text-anchor="middle" fill="#64748b" font-weight="bold" font-size="10">${"實際情景"}</text>
+                <text x="220" y="18" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="10">${"隔離體圖 (FBD)"}</text>
+                <line x1="80" y1="130" x2="80" y2="130" stroke="#94a3b8" stroke-width="3"/>
+                <line x1="20" y1="130" x2="140" y2="130" stroke="#94a3b8" stroke-width="3"/>
+                <rect x="50" y="85" width="60" height="45" rx="5" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/>
+                <text x="80" y="112" text-anchor="middle" fill="white" font-weight="bold" font-size="10">${"箱子"}</text>
+                <line x1="110" y1="107" x2="135" y2="107" stroke="#3b82f6" stroke-width="2"/>
+                <text x="130" y="100" fill="#3b82f6" font-size="8">${"推"}</text>
+                <rect x="190" y="85" width="60" height="45" rx="5" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4,3"/>
+                <line x1="220" y1="130" x2="220" y2="170" stroke="#ef4444" stroke-width="2.5" marker-end="url(#aFBDR)"/>
+                <text x="240" y="162" fill="#ef4444" font-weight="bold" font-size="9">${"W"}</text>
+                <line x1="220" y1="85" x2="220" y2="45" stroke="#22c55e" stroke-width="2.5" marker-end="url(#aFBDG)"/>
+                <text x="240" y="58" fill="#22c55e" font-weight="bold" font-size="9">${"R"}</text>
+                <line x1="250" y1="107" x2="280" y2="107" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#aFBDB)"/>
+                <text x="275" y="100" fill="#3b82f6" font-weight="bold" font-size="9">${"F"}</text>
+                <line x1="190" y1="107" x2="165" y2="107" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#aFBDO)"/>
+                <text x="168" y="100" fill="#f59e0b" font-weight="bold" font-size="9">${"f"}</text>
+                <path d="M145,107 L155,100 L165,107" fill="none" stroke="#94a3b8" stroke-width="1.5"/>
+                <text x="150" y="200" text-anchor="middle" fill="#64748b" font-size="10">${"只畫一個物體 + 所有作用在它身上的力"}</text>
+                <text x="150" y="215" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="10">${"箭號方向 = 力的方向"}</text>
+            </svg>`;
+        }
+        function DiagNetForce() {
+            return html`<svg viewBox="0 0 300 200" className="w-full max-w-[280px] mx-auto">
+                <defs>
+                    <marker id="aNFR" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#ef4444"/></marker>
+                    <marker id="aNFB" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#3b82f6"/></marker>
+                    <marker id="aNFP" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#8b5cf6"/></marker>
+                </defs>
+                <text x="75" y="18" text-anchor="middle" fill="#3b82f6" font-weight="bold" font-size="10">${"同方向"}</text>
+                <circle cx="75" cy="55" r="15" fill="#3b82f6" stroke="#1d4ed8" stroke-width="1.5"/>
+                <line x1="90" y1="55" x2="130" y2="55" stroke="#3b82f6" stroke-width="3" marker-end="url(#aNFB)"/>
+                <text x="110" y="48" fill="#3b82f6" font-size="9">${"2N"}</text>
+                <line x1="130" y1="55" x2="160" y2="55" stroke="#ef4444" stroke-width="3" marker-end="url(#aNFR)"/>
+                <text x="148" y="48" fill="#ef4444" font-size="9">${"2N"}</text>
+                <text x="180" y="58" fill="#8b5cf6" font-weight="bold" font-size="11">${"→ 淨力 4N →"}</text>
+                <text x="75" y="95" text-anchor="middle" fill="#ef4444" font-weight="bold" font-size="10">${"反方向"}</text>
+                <circle cx="75" cy="125" r="15" fill="#3b82f6" stroke="#1d4ed8" stroke-width="1.5"/>
+                <line x1="90" y1="125" x2="130" y2="125" stroke="#3b82f6" stroke-width="3" marker-end="url(#aNFB)"/>
+                <text x="110" y="118" fill="#3b82f6" font-size="9">${"2N"}</text>
+                <line x1="60" y1="125" x2="30" y2="125" stroke="#ef4444" stroke-width="3" marker-end="url(#aNFR)"/>
+                <text x="40" y="118" fill="#ef4444" font-size="9">${"2N"}</text>
+                <text x="180" y="128" fill="#8b5cf6" font-weight="bold" font-size="11">${"→ 淨力 0N ⚖️"}</text>
+                <rect x="40" y="155" width="220" height="35" rx="8" fill="#8b5cf6" opacity="0.1" stroke="#8b5cf6" stroke-width="1.5"/>
+                <text x="150" y="170" text-anchor="middle" fill="#8b5cf6" font-weight="bold" font-size="11">${"淨力 = 所有力加起來的結果"}</text>
+                <text x="150" y="185" text-anchor="middle" fill="#7c3aed" font-size="10">${"方向相同 → 相加 ｜ 方向相反 → 相減"}</text>
+            </svg>`;
+        }
+
+        var diagramComponents = {
+            force: DiagForce, forcepair: DiagForcePair, newton: DiagNewton,
+            friction: DiagFriction, normal: DiagNormal, tension: DiagTension,
+            weight: DiagWeight, fbd: DiagFBD, netforce: DiagNetForce
+        };
+
+        /* ===== Flashcard Data ===== */
+        var flashcardData = [
+            { id:1, frontTitle:"力是甚麼？", frontHint:"推和拉的作用", frontColor:"from-blue-500 to-cyan-600", frontIcon:"move",
+              backContent:{ formula:null, concept:"力就是推或拉的作用。它可以讓物體加快、減慢、改變方向、或改變形狀。力是矢量，有大小也有方向，我們用箭號來表示力。",
+              keyPoints:["力 = 推或拉的作用","力可以改變物體的速度和方向","力也可以改變物體的形狀（例如壓扁海綿）","力是矢量：有大小，也有方向"], diagram:"force" }},
+            { id:2, frontTitle:"力是成對出現", frontHint:"你推我，我也推你！", frontColor:"from-rose-500 to-pink-600", frontIcon:"repeat",
+              backContent:{ formula:null, concept:"你對一個物體施力時，那個物體也會同時對你施力！例如你推牆壁，牆壁也在推你。這就是力的成對特性。",
+              keyPoints:["你拉行李箱 → 行李箱也在拉你","你踢足球 → 足球也在踢你的腳","兩個力大小相同，方向相反","這叫做「作用力—反作用力」"], diagram:"forcepair" }},
+            { id:3, frontTitle:"力的單位：牛頓 (N)", frontHint:"以科學家牛頓命名", frontColor:"from-amber-500 to-orange-600", frontIcon:"ruler",
+              backContent:{ formula:null, concept:"力的單位是牛頓（Newton），簡寫為 N。我們可以用彈簧秤或力感應器來量度力的大小。日常生活中有很多力的例子。",
+              keyPoints:["一部手機的重量 ≈ 2 N","一個新生嬰兒的重量 ≈ 30 N","空手道的擊拳力 ≈ 1000 N","量度工具：彈簧秤、力感應器"], diagram:"newton" }},
+            { id:4, frontTitle:"摩擦力", frontHint:"阻止你滑動的力", frontColor:"from-red-500 to-rose-600", frontIcon:"slash",
+              backContent:{ formula:null, concept:"當兩個表面互相滑動（或有滑動的趨勢），就會產生摩擦力。摩擦力的方向永遠相反於運動方向，像是在「拖住」你。",
+              keyPoints:["摩擦力方向 = 運動方向的反方向","粗糙表面 → 摩擦力大","平滑表面 → 摩擦力小（可假設為零）","成因：表面凹凸處互相卡住"], diagram:"friction" }},
+            { id:5, frontTitle:"法向力", frontHint:"表面對你的支撐力", frontColor:"from-emerald-500 to-teal-600", frontIcon:"arrow-up-from-line",
+              backContent:{ formula:null, concept:"當一個物體放在表面上，表面會對它施加一個垂直向上的力，叫做法向力 (R)。法向力永遠垂直於接觸面。就是它在支撐你站在地面上！",
+              keyPoints:["法向力垂直於接觸面，通常向上","沒有法向力 → 你會穿過地面掉下去！","「法向」= 垂直的意思","只有接觸時才有法向力"], diagram:"normal" }},
+            { id:6, frontTitle:"張力", frontHint:"繩子拉你的力", frontColor:"from-yellow-500 to-amber-600", frontIcon:"link",
+              backContent:{ formula:null, concept:"當繩索被拉緊時，繩子內部就會產生張力。張力沿繩索方向牽拉物體。拔河時你感受到的就是張力！",
+              keyPoints:["張力 = 繩子被拉緊時產生的力","方向：沿繩索牽拉物體","拉直的輕繩上每一點的張力都相同","繩子鬆弛 → 沒有張力"], diagram:"tension" }},
+            { id:7, frontTitle:"重量（非接觸力）", frontHint:"地球對你的引力 W = mg", frontColor:"from-violet-500 to-purple-600", frontIcon:"globe",
+              backContent:{ formula:"W = mg", concept:"重量是地球施加在物體上的引力（重力）。不需要接觸就有作用！方向永遠指向地心（向下）。",
+              keyPoints:["W = 重量（單位 N），m = 質量（單位 kg）","g = 重力加速度 ≈ 9.8 m/s²","不用接觸地球也有重量（例如跳起來時）","即使在太空站裏，也有重力（只是很小）"], diagram:"weight" }},
+            { id:8, frontTitle:"隔離體圖 (FBD)", frontHint:"把所有力畫出來的圖", frontColor:"from-indigo-500 to-blue-600", frontIcon:"pen-tool",
+              backContent:{ formula:null, concept:"隔離體圖（自由體圖）是只畫一個物體，然後把所有作用在它身上的力用箭號畫出來。這是解力學問題的第一步！",
+              keyPoints:["步驟 1：只畫一個物體（可簡化為方形）","步驟 2：找出所有作用在它上面的力","步驟 3：每道力畫一個箭號（方向要正確）","步驟 4：標示每個力的名稱"], diagram:"fbd" }},
+            { id:9, frontTitle:"淨力", frontHint:"把所有力加起來！", frontColor:"from-purple-500 to-fuchsia-600", frontIcon:"git-merge",
+              backContent:{ formula:"F_{\\text{淨力}} = F_1 + F_2 + \\cdots", concept:"淨力是所有力加起來的結果。同方向的力相加，反方向的力相減。淨力決定物體會如何運動！",
+              keyPoints:["同方向 → 相加（例如 2N + 2N = 4N）","反方向 → 相減（例如 2N − 2N = 0N）","淨力 = 0 → 物體保持靜止或勻速","淨力 ≠ 0 → 物體會加速或減速"], diagram:"netforce" }}
+        ];
+
+        /* ===== Conceptual Questions Pool ===== */
+        var conceptualPool = [
+            { question:'以下哪項是「接觸力」的例子？', options:['重量','摩擦力','磁力','靜電力'], correct:1, explanation:'摩擦力需要兩個表面接觸才會出現，所以是接觸力。重量、磁力和靜電力是非接觸力。' },
+            { question:'摩擦力的方向是怎樣的？', options:['與運動方向相同','與運動方向相反','永遠向上','永遠向下'], correct:1, explanation:'摩擦力的方向永遠相反於物體的運動方向（或運動趨勢的方向）。它就像在「拖住」物體。' },
+            { question:'一本書放在桌子上靜止不動，有幾道力作用在書上？', options:['0 道','1 道','2 道','3 道'], correct:2, explanation:'有 2 道力：向下的重量 (W) 和桌子向上的法向力 (R)。它們互相平衡，所以書靜止不動。' },
+            { question:'法向力的方向是怎樣的？', options:['永遠向右','永遠向下','垂直於接觸面','沿接觸面方向'], correct:2, explanation:'法向力永遠垂直於（perpendicular to）接觸表面。「法向」就是垂直的意思。' },
+            { question:'力的單位是甚麼？', options:['千克 (kg)','牛頓 (N)','米 (m)','秒 (s)'], correct:1, explanation:'力的國際單位是牛頓 (N)，以科學家牛頓的名字命名。千克是質量的單位，不是力的單位。' },
+            { question:'以下哪項關於力的描述是正確的？', options:['力只能使物體加速','力是純量','力是成對出現的','力只在接觸時才存在'], correct:2, explanation:'力是成對出現的。你對物體施力時，物體也會同時對你施力（作用力與反作用力）。' },
+            { question:'一個物體在粗糙的地面上被推動，畫隔離體圖時，不應該包括哪道力？', options:['推力','摩擦力','地面的法向力','你推物體時手受到的力'], correct:3, explanation:'隔離體圖只畫「作用在該物體上」的力。手受到的力是作用在手上，不是作用在物體上，所以不應畫出來。' },
+            { question:'一條繩子掛着一個重物，繩子的張力方向是？', options:['向下','向上（沿繩索方向）','向左','與重力無關'], correct:1, explanation:'張力沿繩索方向牽拉物體。繩子掛着重物時，張力向上拉着重物，防止它掉下來。' },
+            { question:'兩道同方向的力，分別是 3N 和 5N，淨力是多少？', options:['2N','8N','15N','0N'], correct:1, explanation:'同方向的力要相加：3N + 5N = 8N。淨力方向與原來兩道力相同。' },
+            { question:'兩道反方向的力，分別是 10N 和 10N，淨力是多少？', options:['20N','10N','0N','5N'], correct:2, explanation:'反方向的力要相減：10N − 10N = 0N。兩力平衡，淨力為零。' },
+            { question:'以下哪項不是力可以做到的事？', options:['使物體加速','改變物體的質量','改變物體的形狀','改變物體的方向'], correct:1, explanation:'力可以改變速度、方向和形狀，但不能改變質量。質量是物體所含物質的多少，不受力的影響。' },
+            { question:'一個球從高處自由下落，有哪些力作用在它上面？（忽略空氣阻力）', options:['推力和重量','只有重量','法向力和重量','沒有力'], correct:1, explanation:'自由下落時，球只受到一道力——重量（向下的引力）。沒有接觸任何表面，所以沒有法向力或摩擦力。' },
+            { question:'你推一面牆壁，牆壁不動。以下哪項正確？', options:['牆壁沒有對你施力','牆壁也對你施力','你的力比牆壁大','只有你在施力'], correct:1, explanation:'力是成對出現的。你推牆壁，牆壁也同時在推你（反作用力），所以你的手會感到壓力。' },
+            { question:'在平滑（無摩擦）的冰面上推一個箱子，箱子的隔離體圖有哪些力？', options:['推力、重量、法向力、摩擦力','推力、重量、法向力','只有推力','只有重量'], correct:1, explanation:'平滑表面沒有摩擦力，所以只有推力（水平）、重量（向下）和法向力（向上）。' }
+        ];
+
+        /* ===== Net Force questions ===== */
+        var netForcePool = [
+            { forces:[{val:10,dir:'right'},{val:5,dir:'right'}], answer:15, ansDir:'right', text:'兩道力同時向右推一個方塊：10N (→) 和 5N (→)。淨力是多少 N？' },
+            { forces:[{val:20,dir:'right'},{val:15,dir:'left'}], answer:5, ansDir:'right', text:'一個方塊受到 20N (→) 和 15N (←) 兩道力。淨力大小是多少 N？' },
+            { forces:[{val:50,dir:'right'},{val:50,dir:'left'}], answer:0, ansDir:'balanced', text:'一個方塊受到 50N (→) 和 50N (←) 兩道力。淨力是多少 N？' },
+            { forces:[{val:30,dir:'right'},{val:10,dir:'right'},{val:15,dir:'left'}], answer:25, ansDir:'right', text:'三道力作用在方塊上：30N (→)、10N (→) 和 15N (←)。淨力大小是多少 N？' },
+            { forces:[{val:8,dir:'up'},{val:8,dir:'down'}], answer:0, ansDir:'balanced', text:'一個物體受到向上 8N 和向下 8N 的力。淨力是多少 N？' },
+            { forces:[{val:100,dir:'up'},{val:60,dir:'down'}], answer:40, ansDir:'up', text:'一個物體受到向上 100N 和向下 60N 的力。淨力大小是多少 N？' }
+        ];
+
+        /* ===== FBD questions ===== */
+        var fbdPool = [
+            { scenario:'一個球從高處自由下落（忽略空氣阻力）', forces:['重量 (向下)'], options:['只有重量 (向下)','重量 (向下) + 法向力 (向上)','推力 (向下) + 重量 (向下)','沒有力'], correct:0, explanation:'自由下落時只受重量（向下），沒有接觸任何表面。' },
+            { scenario:'一個箱子放在粗糙的地面上，被向右推動', forces:['推力(右)','重量(下)','法向力(上)','摩擦力(左)'], options:['推力、重量、法向力、摩擦力（共 4 道力）','只有推力和重量（共 2 道力）','推力、重量、法向力（共 3 道力）','推力和摩擦力（共 2 道力）'], correct:0, explanation:'箱子在粗糙地面被推動，受到：推力(→)、摩擦力(←)、重量(↓)、法向力(↑)，共 4 道力。' },
+            { scenario:'一個掛飾被繩子懸掛在半空中', forces:['張力(上)','重量(下)'], options:['重量 (向下) + 張力 (向上)','只有重量 (向下)','只有張力 (向上)','重量 + 張力 + 法向力'], correct:0, explanation:'掛飾受到向下的重量和繩子向上的張力。沒有接觸任何表面，所以沒有法向力。' },
+            { scenario:'一個箱子在平滑的斜面上滑下', forces:['重量(下)','法向力(垂直斜面向上)'], options:['重量 (向下) + 法向力 (垂直斜面)','重量 + 法向力 + 摩擦力','只有重量','重量 + 推力'], correct:0, explanation:'平滑斜面沒有摩擦力。箱子受到向下的重量和垂直於斜面的法向力。' }
+        ];
+
+        /* ===== Flashcard Component ===== */
+        function Flashcard(props) {
+            var card = props.card, isFlipped = props.isFlipped, onFlip = props.onFlip;
+            var DiagramComp = diagramComponents[card.backContent.diagram];
+            return html`<div className="flashcard-container w-full cursor-pointer" onClick=${onFlip} style=${{ minHeight:'440px' }}>
+                <div className=${"flashcard-inner " + (isFlipped ? "flipped" : "")}>
+                    <div className="flashcard-front absolute inset-0">
+                        <div className=${"w-full h-full bg-gradient-to-br " + card.frontColor + " rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-white relative overflow-hidden"} style=${{ minHeight:'440px' }}>
+                            <div className="absolute top-[-30px] right-[-30px] w-[120px] h-[120px] rounded-full bg-white opacity-10"></div>
+                            <div className="absolute bottom-[-40px] left-[-40px] w-[160px] h-[160px] rounded-full bg-white opacity-5"></div>
+                            <div className="bg-white/20 p-4 rounded-2xl mb-6 backdrop-blur-sm"><i data-lucide=${card.frontIcon} className="w-10 h-10"></i></div>
+                            <h2 className="text-2xl md:text-3xl font-black text-center mb-3 leading-tight">${card.frontTitle}</h2>
+                            <p className="text-white/80 text-base md:text-lg text-center font-medium">${card.frontHint}</p>
+                            <div className="mt-8 flex items-center gap-2 text-white/60 text-sm pulse-soft">
+                                <i data-lucide="rotate-cw" className="w-4 h-4"></i> ${"點擊翻轉查看詳情"}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flashcard-back absolute inset-0">
+                        <div className="w-full rounded-2xl shadow-xl overflow-hidden border-2" style=${{ minHeight:'440px', background:'var(--card-bg)', borderColor:'var(--card-border)' }}>
+                            <div className=${"h-2 bg-gradient-to-r " + card.frontColor}></div>
+                            <div className="p-5 md:p-6 flex flex-col gap-3">
+                                <h3 className="font-black text-lg md:text-xl flex items-center gap-2" style=${{ color:'var(--text-primary)' }}>
+                                    <i data-lucide=${card.frontIcon} className="w-5 h-5" style=${{ color:'var(--accent-blue)' }}></i>
+                                    ${card.frontTitle}
+                                </h3>
+                                ${card.backContent.formula && html`<div className="rounded-xl p-3 text-center border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>
+                                    <${LatexFormula} tex=${card.backContent.formula} />
+                                </div>`}
+                                <p className="text-sm leading-relaxed" style=${{ color:'var(--text-secondary)' }}>${card.backContent.concept}</p>
+                                <div className="rounded-xl p-3 border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}><${DiagramComp} /></div>
+                                <div className="space-y-1.5">
+                                    ${card.backContent.keyPoints.map(function(pt, i) {
+                                        return html`<div key=${i} className="flex items-start gap-2 text-sm" style=${{ color:'var(--text-primary)' }}>
+                                            <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-bold" style=${{ background:'var(--accent-indigo)' }}>${i+1}</span>
+                                            <span>${pt}</span>
+                                        </div>`;
+                                    })}
+                                </div>
+                                <div className="text-center text-xs pt-1 pulse-soft" style=${{ color:'var(--text-secondary)' }}>${"點擊翻回正面"}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        /* ===== Interactive Force Arrow Lab (cardinal only, stacked) ===== */
+        function ForceSimulation() {
+            var VW = 500, VH = 380;
+            var CX = VW / 2, CY = VH / 2;
+            var OBJ_R = 24;
+            var MIN_MAG = 20, MAX_MAG = 150;
+            var SPACING = 28;
+            var COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+            var MAX_ARROWS = 8;
+            var DIRS = ['right','left','up','down'];
+            var DIR_LABELS = { right:'→ 向右', left:'← 向左', up:'↑ 向上', down:'↓ 向下' };
+            var NEXT_DIR_CYCLE = ['right','down','left','up'];
+
+            /* Convert dir+mag to dx,dy */
+            function toDxDy(dir, mag) {
+                if (dir === 'right') return { dx: mag, dy: 0 };
+                if (dir === 'left') return { dx: -mag, dy: 0 };
+                if (dir === 'up') return { dx: 0, dy: -mag };
+                return { dx: 0, dy: mag };
+            }
+
+            var arrowsS = useState([
+                { id: 1, dir: 'right', mag: 80, color: '#3b82f6' },
+                { id: 2, dir: 'left', mag: 55, color: '#ef4444' }
+            ]);
+            var arrows = arrowsS[0], setArrows = arrowsS[1];
+            var nextIdS = useState(3);
+            var nextId = nextIdS[0], setNextId = nextIdS[1];
+            var draggingS = useState(null);
+            var dragging = draggingS[0], setDragging = draggingS[1];
+            var svgRef = useRef(null);
+            var draggingRef = useRef(null);
+
+            /* Net force from arrows */
+            var netDx = 0, netDy = 0;
+            for (var ni = 0; ni < arrows.length; ni++) {
+                var dd = toDxDy(arrows[ni].dir, arrows[ni].mag);
+                netDx += dd.dx; netDy += dd.dy;
+            }
+            var netMag = Math.sqrt(netDx * netDx + netDy * netDy);
+
+            /* Compute perpendicular offsets so same-direction arrows stack */
+            function computeLayout(arrs) {
+                var groups = { right:[], left:[], up:[], down:[] };
+                var ai;
+                for (ai = 0; ai < arrs.length; ai++) { groups[arrs[ai].dir].push(arrs[ai].id); }
+                var offsets = {};
+                var dkey;
+                for (var di = 0; di < DIRS.length; di++) {
+                    dkey = DIRS[di];
+                    var grp = groups[dkey];
+                    var n = grp.length;
+                    for (var gi = 0; gi < n; gi++) {
+                        offsets[grp[gi]] = (gi - (n - 1) / 2) * SPACING;
+                    }
+                }
+                return offsets;
+            }
+
+            var layout = computeLayout(arrows);
+
+            /* Get start and end coords for an arrow */
+            function getCoords(a) {
+                var off = layout[a.id] || 0;
+                var sx, sy, ex, ey;
+                if (a.dir === 'right') { sx = CX + OBJ_R; sy = CY + off; ex = sx + a.mag; ey = sy; }
+                else if (a.dir === 'left') { sx = CX - OBJ_R; sy = CY + off; ex = sx - a.mag; ey = sy; }
+                else if (a.dir === 'up') { sx = CX + off; sy = CY - OBJ_R; ex = sx; ey = sy - a.mag; }
+                else { sx = CX + off; sy = CY + OBJ_R; ex = sx; ey = sy + a.mag; }
+                return { sx: sx, sy: sy, ex: ex, ey: ey };
+            }
+
+            /* Drag via window events */
+            useEffect(function() {
+                function getSvgCoords(e) {
+                    var svg = svgRef.current;
+                    if (!svg) return null;
+                    var rect = svg.getBoundingClientRect();
+                    var cx2, cy2;
+                    if (e.touches && e.touches.length > 0) { cx2 = e.touches[0].clientX; cy2 = e.touches[0].clientY; }
+                    else { cx2 = e.clientX; cy2 = e.clientY; }
+                    return { x: (cx2 - rect.left) / rect.width * VW, y: (cy2 - rect.top) / rect.height * VH };
+                }
+                function onMove(e) {
+                    if (draggingRef.current === null) return;
+                    e.preventDefault();
+                    var c = getSvgCoords(e);
+                    if (!c) return;
+                    var rawDx = c.x - CX;
+                    var rawDy = c.y - CY;
+                    var absX = Math.abs(rawDx);
+                    var absY = Math.abs(rawDy);
+                    var newDir, newMag;
+                    if (absX >= absY) {
+                        newDir = rawDx >= 0 ? 'right' : 'left';
+                        newMag = absX - OBJ_R;
+                    } else {
+                        newDir = rawDy <= 0 ? 'up' : 'down';
+                        newMag = absY - OBJ_R;
+                    }
+                    if (newMag < MIN_MAG) newMag = MIN_MAG;
+                    if (newMag > MAX_MAG) newMag = MAX_MAG;
+                    newMag = Math.round(newMag);
+                    var did = draggingRef.current;
+                    setArrows(function(prev) {
+                        return prev.map(function(a) {
+                            if (a.id === did) return { id: a.id, dir: newDir, mag: newMag, color: a.color };
+                            return a;
+                        });
+                    });
+                }
+                function onUp() { draggingRef.current = null; setDragging(null); }
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+                window.addEventListener('touchmove', onMove, { passive: false });
+                window.addEventListener('touchend', onUp);
+                return function() {
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                    window.removeEventListener('touchmove', onMove);
+                    window.removeEventListener('touchend', onUp);
+                };
+            }, []);
+
+            function startDrag(id, e) {
+                e.preventDefault(); e.stopPropagation();
+                draggingRef.current = id;
+                setDragging(id);
+            }
+
+            function addArrow() {
+                if (arrows.length >= MAX_ARROWS) return;
+                var usedColors = arrows.map(function(a) { return a.color; });
+                var newColor = COLORS[0];
+                for (var ci = 0; ci < COLORS.length; ci++) {
+                    if (usedColors.indexOf(COLORS[ci]) === -1) { newColor = COLORS[ci]; break; }
+                }
+                var newDir = NEXT_DIR_CYCLE[arrows.length % 4];
+                var newMag = 45 + Math.round(Math.random() * 40);
+                setArrows(function(prev) {
+                    return prev.concat([{ id: nextId, dir: newDir, mag: newMag, color: newColor }]);
+                });
+                setNextId(function(p) { return p + 1; });
+            }
+
+            function removeArrow(id) {
+                setArrows(function(prev) { return prev.filter(function(a) { return a.id !== id; }); });
+            }
+
+            function arrowheadPts(tipX, tipY, angle, size) {
+                var p1x = tipX - size * Math.cos(angle - Math.PI / 7);
+                var p1y = tipY - size * Math.sin(angle - Math.PI / 7);
+                var p2x = tipX - size * Math.cos(angle + Math.PI / 7);
+                var p2y = tipY - size * Math.sin(angle + Math.PI / 7);
+                return tipX + ',' + tipY + ' ' + p1x + ',' + p1y + ' ' + p2x + ',' + p2y;
+            }
+
+            function dirAngle(dir) {
+                if (dir === 'right') return 0;
+                if (dir === 'left') return Math.PI;
+                if (dir === 'up') return -Math.PI / 2;
+                return Math.PI / 2;
+            }
+
+            /* Presets — all cardinal only */
+            function presetSameDir() {
+                setArrows([{ id: nextId, dir:'right', mag:70, color:'#3b82f6' }, { id: nextId + 1, dir:'right', mag:50, color:'#22c55e' }]);
+                setNextId(function(p) { return p + 2; }); setDragging(null); draggingRef.current = null;
+            }
+            function presetOpposite() {
+                setArrows([{ id: nextId, dir:'right', mag:80, color:'#3b82f6' }, { id: nextId + 1, dir:'left', mag:50, color:'#ef4444' }]);
+                setNextId(function(p) { return p + 2; }); setDragging(null); draggingRef.current = null;
+            }
+            function presetBalanced() {
+                setArrows([{ id: nextId, dir:'right', mag:70, color:'#3b82f6' }, { id: nextId + 1, dir:'left', mag:70, color:'#ef4444' }]);
+                setNextId(function(p) { return p + 2; }); setDragging(null); draggingRef.current = null;
+            }
+            function presetMulti() {
+                setArrows([
+                    { id: nextId, dir:'right', mag:80, color:'#3b82f6' },
+                    { id: nextId + 1, dir:'left', mag:40, color:'#ef4444' },
+                    { id: nextId + 2, dir:'up', mag:60, color:'#22c55e' },
+                    { id: nextId + 3, dir:'down', mag:35, color:'#f59e0b' }
+                ]);
+                setNextId(function(p) { return p + 4; }); setDragging(null); draggingRef.current = null;
+            }
+
+            useEffect(function() { lucide.createIcons(); });
+
+            /* Render grid lines */
+            var gridLines = [];
+            var gi;
+            for (gi = 50; gi < VW; gi += 50) {
+                gridLines.push(html`<line key=${'gx' + gi} x1=${gi} y1="0" x2=${gi} y2=${VH} stroke="#94a3b8" stroke-width="0.4" opacity="0.25" />`);
+            }
+            for (gi = 30; gi < VH; gi += 50) {
+                gridLines.push(html`<line key=${'gy' + gi} x1="0" y1=${gi} x2=${VW} y2=${gi} stroke="#94a3b8" stroke-width="0.4" opacity="0.25" />`);
+            }
+
+            /* Net force computation for display */
+            var rightSum = 0, leftSum = 0, upSum = 0, downSum = 0;
+            for (var si = 0; si < arrows.length; si++) {
+                if (arrows[si].dir === 'right') rightSum += arrows[si].mag;
+                else if (arrows[si].dir === 'left') leftSum += arrows[si].mag;
+                else if (arrows[si].dir === 'up') upSum += arrows[si].mag;
+                else downSum += arrows[si].mag;
+            }
+            var hNet = rightSum - leftSum;
+            var vNet = upSum - downSum;
+
+            /* Build horizontal and vertical step expressions */
+            function buildStepExpr(arrs, axis) {
+                var parts = [];
+                for (var bi = 0; bi < arrs.length; bi++) {
+                    var a = arrs[bi];
+                    var isPositive = (axis === 'h') ? (a.dir === 'right') : (a.dir === 'up');
+                    if (parts.length === 0) {
+                        parts.push(isPositive ? String(a.mag) : '−' + a.mag);
+                    } else {
+                        parts.push(isPositive ? ' + ' + a.mag : ' − ' + a.mag);
+                    }
+                }
+                return parts.join('');
+            }
+
+            var hExpr = buildStepExpr(arrows, 'h');
+            var vExpr = buildStepExpr(arrows, 'v');
+
+            return html`<div className="space-y-5">
+                <div className="p-4 rounded-xl border" style=${{ background:'var(--quiz-bg)', borderColor:'var(--quiz-border)' }}>
+                    <p className="text-sm font-bold mb-2" style=${{ color:'var(--quiz-text)' }}>${"一鍵載入情景："}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onClick=${presetSameDir} className="border py-2 px-3 rounded-lg text-xs font-bold transition hover:shadow-md" style=${{ borderColor:'#3b82f6', background:'var(--card-bg)', color:'var(--text-primary)' }}>${"→→ 同方向"}</button>
+                        <button onClick=${presetOpposite} className="border py-2 px-3 rounded-lg text-xs font-bold transition hover:shadow-md" style=${{ borderColor:'#ef4444', background:'var(--card-bg)', color:'var(--text-primary)' }}>${"←→ 反方向"}</button>
+                        <button onClick=${presetBalanced} className="border py-2 px-3 rounded-lg text-xs font-bold transition hover:shadow-md" style=${{ borderColor:'#22c55e', background:'var(--card-bg)', color:'var(--text-primary)' }}>${"⚖️ 完美平衡"}</button>
+                        <button onClick=${presetMulti} className="border py-2 px-3 rounded-lg text-xs font-bold transition hover:shadow-md" style=${{ borderColor:'#8b5cf6', background:'var(--card-bg)', color:'var(--text-primary)' }}>${"🔀 多力組合"}</button>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden border-2 shadow-inner" style=${{ borderColor:'var(--card-border)' }}>
+                    <svg ref=${svgRef} viewBox=${"0 0 " + VW + " " + VH} className="w-full" style=${{ background:'var(--surface)', touchAction:'none', cursor: dragging !== null ? 'grabbing' : 'default', minHeight:'260px' }}>
+                        ${gridLines}
+                        <line x1="0" y1=${CY} x2=${VW} y2=${CY} stroke="#94a3b8" stroke-width="0.8" opacity="0.2" />
+                        <line x1=${CX} y1="0" x2=${CX} y2=${VH} stroke="#94a3b8" stroke-width="0.8" opacity="0.2" />
+
+                        ${arrows.map(function(a, idx) {
+                            var co = getCoords(a);
+                            var angle = dirAngle(a.dir);
+                            var AH = 13;
+                            var isDragging = dragging === a.id;
+                            /* Label position — offset perpendicular to arrow */
+                            var lx, ly;
+                            if (a.dir === 'right' || a.dir === 'left') {
+                                lx = (co.sx + co.ex) / 2;
+                                ly = co.sy - 16;
+                            } else {
+                                lx = co.sx + 18;
+                                ly = (co.sy + co.ey) / 2;
+                            }
+
+                            return html`<g key=${a.id}>
+                                <line x1=${co.sx} y1=${co.sy} x2=${co.ex} y2=${co.ey} stroke=${a.color} stroke-width=${isDragging ? 4.5 : 3.5} stroke-linecap="round" opacity=${isDragging ? 1 : 0.85} />
+                                <polygon points=${arrowheadPts(co.ex, co.ey, angle, AH)} fill=${a.color} />
+                                <circle cx=${co.ex} cy=${co.ey} r=${isDragging ? 16 : 13} fill=${a.color} opacity=${isDragging ? 0.35 : 0.15} stroke=${a.color} stroke-width="2.5" stroke-dasharray=${isDragging ? "0" : "4,3"}
+                                    style=${{ cursor: 'grab' }}
+                                    onMouseDown=${function(e) { startDrag(a.id, e); }}
+                                    onTouchStart=${function(e) { startDrag(a.id, e); }} />
+                                <text x=${lx} y=${ly} text-anchor="middle" dominant-baseline="middle" fill=${a.color} font-weight="bold" font-size="12" style=${{ pointerEvents:'none' }}>
+                                    ${"F" + (idx + 1) + "=" + a.mag + "N"}
+                                </text>
+                            </g>`;
+                        })}
+
+                        ${netMag > 3 && function() {
+                            var ntX = CX + netDx;
+                            var ntY = CY + netDy;
+                            var nAngle = Math.atan2(netDy, netDx);
+                            /* Place label at arrowhead tip, offset in arrow direction */
+                            var labText = "淨力 " + Math.round(netMag) + "N";
+                            var labW = Math.max(78, 44 + String(Math.round(netMag)).length * 10);
+                            var nx = netDx / netMag;
+                            var ny = netDy / netMag;
+                            var labDist = 22;
+                            var labX, labY, labAnchor;
+                            if (Math.abs(nx) >= Math.abs(ny)) {
+                                labY = ntY;
+                                if (nx >= 0) { labX = ntX + labDist; labAnchor = 'start'; }
+                                else { labX = ntX - labDist; labAnchor = 'end'; }
+                            } else {
+                                labX = ntX;
+                                labAnchor = 'middle';
+                                if (ny >= 0) { labY = ntY + labDist + 6; }
+                                else { labY = ntY - labDist; }
+                            }
+                            var rectX = labAnchor === 'start' ? labX - 4 : (labAnchor === 'end' ? labX - labW + 4 : labX - labW / 2);
+                            var rectY = labY - 12;
+                            return html`<g>
+                                <line x1=${CX} y1=${CY} x2=${ntX} y2=${ntY} stroke="#8b5cf6" stroke-width="4" stroke-dasharray="10,6" stroke-linecap="round" opacity="0.75" />
+                                <polygon points=${arrowheadPts(ntX, ntY, nAngle, 14)} fill="#8b5cf6" opacity="0.75" />
+                                <rect x=${rectX} y=${rectY} width=${labW} height="24" rx="6" fill="#8b5cf6" opacity="0.15" />
+                                <text x=${labX} y=${labY + 1} text-anchor=${labAnchor} dominant-baseline="middle" fill="#8b5cf6" font-weight="bold" font-size="13" style=${{ pointerEvents:'none' }}>
+                                    ${labText}
+                                </text>
+                            </g>`;
+                        }()}
+
+                        ${netMag <= 3 && arrows.length >= 2 && html`<g>
+                            <circle cx=${CX} cy=${CY - 58} r="22" fill="#059669" opacity="0.12" stroke="#059669" stroke-width="1.5">
+                                <animate attributeName="r" values="20;26;20" dur="1.5s" repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.12;0.06;0.12" dur="1.5s" repeatCount="indefinite" />
+                            </circle>
+                            <text x=${CX} y=${CY - 53} text-anchor="middle" fill="#059669" font-weight="bold" font-size="14" style=${{ pointerEvents:'none' }}>
+                                ${"⚖️ 平衡！淨力 ≈ 0"}
+                            </text>
+                        </g>`}
+
+                        <rect x=${CX - OBJ_R} y=${CY - OBJ_R} width=${OBJ_R * 2} height=${OBJ_R * 2} rx="8" fill="#f59e0b" stroke="#d97706" stroke-width="2" style=${{ pointerEvents:'none' }} />
+                        <text x=${CX} y=${CY + 5} text-anchor="middle" fill="white" font-weight="bold" font-size="13" style=${{ pointerEvents:'none' }}>${"物體"}</text>
+
+                        <text x="10" y="18" fill="#94a3b8" font-size="11" opacity="0.6" style=${{ pointerEvents:'none' }}>${"拖曳虛線圓圈改變力的方向和大小"}</text>
+                        <text x="10" y="33" fill="#94a3b8" font-size="10" opacity="0.45" style=${{ pointerEvents:'none' }}>${"（只能放水平或垂直的力）"}</text>
+                        <line x1="20" y1=${VH - 18} x2="70" y2=${VH - 18} stroke="#94a3b8" stroke-width="2" opacity="0.35" />
+                        <text x="78" y=${VH - 14} fill="#94a3b8" font-size="10" opacity="0.4" style=${{ pointerEvents:'none' }}>${"= 50 N"}</text>
+                    </svg>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="p-5 rounded-xl border-2 shadow-sm" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>
+                        <h3 className="text-base font-bold mb-3 flex items-center gap-2" style=${{ color:'var(--text-primary)' }}>
+                            <i data-lucide="list" className="w-4 h-4"></i> ${"力的列表"}
+                        </h3>
+                        <div className="space-y-2 mb-4" style=${{ maxHeight:'220px', overflowY:'auto' }}>
+                            ${arrows.map(function(a, idx) {
+                                return html`<div key=${a.id} className="flex items-center gap-3 p-2.5 rounded-lg border transition-all" style=${{ background:'var(--card-bg)', borderColor: dragging === a.id ? a.color : 'var(--card-border)', boxShadow: dragging === a.id ? '0 0 0 2px ' + a.color + '33' : 'none' }}>
+                                    <span className="w-4 h-4 rounded-full flex-shrink-0" style=${{ background: a.color }}></span>
+                                    <span className="font-bold text-sm flex-1" style=${{ color:'var(--text-primary)' }}>
+                                        ${"F" + (idx + 1) + " = " + a.mag + " N"}
+                                        <span className="ml-1 opacity-60 text-xs">${DIR_LABELS[a.dir]}</span>
+                                    </span>
+                                    ${arrows.length > 1 && html`<button onClick=${function() { removeArrow(a.id); }}
+                                        className="w-7 h-7 rounded-full flex items-center justify-center text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-lg font-bold">${"×"}</button>`}
+                                </div>`;
+                            })}
+                        </div>
+                        ${arrows.length < MAX_ARROWS && html`<button onClick=${addArrow}
+                            className="w-full py-2.5 rounded-lg border-2 border-dashed font-bold text-sm transition-all hover:shadow-md flex items-center justify-center gap-2"
+                            style=${{ borderColor:'var(--accent-blue)', color:'var(--accent-blue)', background:'transparent' }}>
+                            <i data-lucide="plus-circle" className="w-4 h-4"></i> ${"新增一道力 (" + arrows.length + "/" + MAX_ARROWS + ")"}
+                        </button>`}
+                    </div>
+
+                    <div className="p-5 rounded-xl border-2 shadow-sm" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>
+                        <h3 className="text-base font-bold mb-3 flex items-center gap-2" style=${{ color:'var(--text-primary)' }}>
+                            <i data-lucide="git-merge" className="w-4 h-4"></i> ${"淨力結果"}
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="p-3 rounded-lg border-l-4 border-blue-500" style=${{ background:'var(--card-bg)' }}>
+                                <div className="text-xs font-bold mb-1" style=${{ color:'var(--text-secondary)' }}>${"水平方向 (← →)"}</div>
+                                <div className="font-bold mono text-base" style=${{ color:'var(--text-primary)' }}>
+                                    ${hExpr || '0'}${" = "}
+                                    <span style=${{ color:'#3b82f6' }}>${Math.abs(hNet) + " N " + (hNet > 0 ? '→' : hNet < 0 ? '←' : '')}</span>
+                                </div>
+                            </div>
+                            <div className="p-3 rounded-lg border-l-4 border-green-500" style=${{ background:'var(--card-bg)' }}>
+                                <div className="text-xs font-bold mb-1" style=${{ color:'var(--text-secondary)' }}>${"垂直方向 (↑ ↓)"}</div>
+                                <div className="font-bold mono text-base" style=${{ color:'var(--text-primary)' }}>
+                                    ${vExpr || '0'}${" = "}
+                                    <span style=${{ color:'#22c55e' }}>${Math.abs(vNet) + " N " + (vNet > 0 ? '↑' : vNet < 0 ? '↓' : '')}</span>
+                                </div>
+                            </div>
+                            <div className="p-4 rounded-xl border-2 text-center" style=${{ background: netMag <= 3 ? '#dcfce7' : '#f3e8ff', borderColor: netMag <= 3 ? '#22c55e' : '#8b5cf6' }}>
+                                <div className="text-sm font-bold mb-1" style=${{ color: netMag <= 3 ? '#166534' : '#6b21a8' }}>${"淨力大小"}</div>
+                                <div className="text-3xl font-black mono" style=${{ color: netMag <= 3 ? '#16a34a' : '#7c3aed' }}>
+                                    ${Math.round(netMag) + " N"}
+                                </div>
+                                ${netMag <= 3 && arrows.length >= 2 && html`<div className="text-sm font-bold mt-1" style=${{ color:'#16a34a' }}>${"⚖️ 所有力互相平衡了！"}</div>`}
+                                ${netMag > 3 && html`<div className="text-xs mt-1 opacity-70" style=${{ color:'#7c3aed' }}>${"淨力方向：" + (Math.abs(hNet) > 0 ? (hNet > 0 ? '→' : '←') : '') + (Math.abs(vNet) > 0 ? (vNet > 0 ? '↑' : '↓') : '')}</div>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        /* ===== Free-Body Diagram Experiment ===== */
+        var fbdScenarios = [
+            {
+                id: 'book-table',
+                title: '📖 書本放在桌上',
+                desc: '一本書靜止地放在桌面上。',
+                hint: '想一想：有甚麼力作用在書本上？書本靜止代表甚麼？',
+                emoji: '📖', emojiSize: 40,
+                sceneElements: 'table',
+                contactSurface: 'bottom',
+                answer: [
+                    { dir: 'down', name: '重力', nameEn: 'W', origin: 'center' },
+                    { dir: 'up', name: '法向力', nameEn: 'N', origin: 'bottom' }
+                ]
+            },
+            {
+                id: 'apple-fall',
+                title: '🍎 蘋果從樹上掉下',
+                desc: '一顆蘋果脫離了樹枝，正在空中下落（忽略空氣阻力）。',
+                hint: '蘋果離開了樹枝，還有甚麼接觸到它嗎？',
+                emoji: '🍎', emojiSize: 40,
+                sceneElements: 'air',
+                answer: [
+                    { dir: 'down', name: '重力', nameEn: 'W', origin: 'center' }
+                ]
+            },
+            {
+                id: 'push-box',
+                title: '🫸 推箱子（有摩擦力）',
+                desc: '一個人向右推動地上的箱子，地面有摩擦力。',
+                hint: '箱子被人推、被地面支撐、被地心吸引，還有摩擦力在阻止它移動。',
+                emoji: '📦', emojiSize: 40,
+                sceneElements: 'floor-push',
+                contactSurface: 'bottom',
+                answer: [
+                    { dir: 'down', name: '重力', nameEn: 'W', origin: 'center' },
+                    { dir: 'up', name: '法向力', nameEn: 'N', origin: 'bottom' },
+                    { dir: 'right', name: '推力', nameEn: 'F', origin: 'edge' },
+                    { dir: 'left', name: '摩擦力', nameEn: 'f', origin: 'bottom' }
+                ]
+            },
+            {
+                id: 'lamp-string',
+                title: '💡 燈掛在繩上',
+                desc: '一盞燈用一條繩子從天花板垂直掛下來，靜止不動。',
+                hint: '繩子拉住了燈，地球對燈有甚麼力？',
+                emoji: '💡', emojiSize: 40,
+                sceneElements: 'string',
+                answer: [
+                    { dir: 'down', name: '重力', nameEn: 'W', origin: 'center' },
+                    { dir: 'up', name: '拉力', nameEn: 'T', origin: 'top' }
+                ]
+            },
+            {
+                id: 'tug-war',
+                title: '🪢 拔河（繩子）',
+                desc: '兩隊人在拔河，左邊的隊伍拉力較大。請為中間的繩子畫隔離體圖。忽略繩子重量。',
+                hint: '繩子兩端各受一個拉力。如果忽略繩子重量，就只有水平方向的力。',
+                emoji: '🪢', emojiSize: 36,
+                sceneElements: 'tug',
+                answer: [
+                    { dir: 'left', name: '左隊拉力', nameEn: 'F₁', origin: 'edge' },
+                    { dir: 'right', name: '右隊拉力', nameEn: 'F₂', origin: 'edge' }
+                ]
+            }
+        ];
+
+        var FBD_FORCE_COLORS = { '重力':'#ef4444', '法向力':'#22c55e', '摩擦力':'#f59e0b', '推力':'#3b82f6', '拉力':'#8b5cf6', '左隊拉力':'#ec4899', '右隊拉力':'#06b6d4' };
+        var FBD_DIR_LABELS = { right:'→ 向右', left:'← 向左', up:'↑ 向上', down:'↓ 向下' };
+        var FBD_FORCE_DEFAULT_DIR = {
+            '重力':'down', '法向力':'up', '摩擦力':'left',
+            '推力':'right', '拉力':'up', '左隊拉力':'left', '右隊拉力':'right'
+        };
+        var FBD_FORCE_DEFAULT_ORIGIN = {
+            '重力':'center', '法向力':'bottom', '摩擦力':'bottom',
+            '推力':'edge', '拉力':'top', '左隊拉力':'edge', '右隊拉力':'edge'
+        };
+
+        function FBDExperiment() {
+            var scnS = useState(0);
+            var scnIdx = scnS[0], setScnIdx = scnS[1];
+            var scene = fbdScenarios[scnIdx];
+
+            var placedS = useState([]);
+            var placed = placedS[0], setPlaced = placedS[1];
+            var checkedS = useState(false);
+            var checked = checkedS[0], setChecked = checkedS[1];
+            var resultS = useState(null);
+            var result = resultS[0], setResult = resultS[1];
+            var showHintS = useState(false);
+            var showHint = showHintS[0], setShowHint = showHintS[1];
+
+            /* Drag state */
+            var dragInfoRef = useRef(null);
+            var dragPosS = useState(null);
+            var dragPos = dragPosS[0], setDragPos = dragPosS[1];
+            var dragNameS = useState(null);
+            var dragName = dragNameS[0], setDragName = dragNameS[1];
+            var fbdSvgRef = useRef(null);
+            var svgHoverS = useState(false);
+            var svgHover = svgHoverS[0], setSvgHover = svgHoverS[1];
+            var hoverZoneS = useState(null);
+            var hoverZone = hoverZoneS[0], setHoverZone = hoverZoneS[1];
+            var dragSourceRef = useRef(null); /* {type:'palette'} | {type:'placed', origForce:{…}} */
+
+            var VW = 420, VH = 380;
+            var CX = VW / 2, CY = VH / 2;
+            var OBJ_R = 30;
+            var ARR_LEN = 75;
+            var SPACING = 26;
+
+            var palette = [
+                { name:'重力', nameEn:'W', icon:'⬇️' },
+                { name:'法向力', nameEn:'N', icon:'⬆️' },
+                { name:'摩擦力', nameEn:'f', icon:'↔️' },
+                { name:'推力', nameEn:'F', icon:'👉' },
+                { name:'拉力', nameEn:'T', icon:'🪢' },
+                { name:'左隊拉力', nameEn:'F₁', icon:'👈' },
+                { name:'右隊拉力', nameEn:'F₂', icon:'👉' }
+            ];
+
+            function selectScene(idx) {
+                setScnIdx(idx); setPlaced([]); setChecked(false); setResult(null); setShowHint(false);
+            }
+
+            function addForce(name, nameEn, zone) {
+                if (checked) return;
+                for (var pi = 0; pi < placed.length; pi++) { if (placed[pi].name === name) return; }
+                var dir, origin;
+                if (zone === 'bottom-left') { dir = 'left'; origin = 'bottom'; }
+                else if (zone === 'bottom-right') { dir = 'right'; origin = 'bottom'; }
+                else if (zone === 'left') { dir = 'left'; origin = 'edge'; }
+                else if (zone === 'right') { dir = 'right'; origin = 'edge'; }
+                else if (zone === 'up') { dir = 'up'; origin = FBD_FORCE_DEFAULT_ORIGIN[name] || 'edge'; }
+                else if (zone === 'down') { dir = 'down'; origin = FBD_FORCE_DEFAULT_ORIGIN[name] || 'edge'; }
+                else { dir = FBD_FORCE_DEFAULT_DIR[name] || 'down'; origin = FBD_FORCE_DEFAULT_ORIGIN[name] || 'edge'; }
+                setPlaced(function(prev) { return prev.concat([{ dir: dir, name: name, nameEn: nameEn, origin: origin }]); });
+            }
+
+            function removeForce(name) {
+                if (checked) return;
+                setPlaced(function(prev) { return prev.filter(function(f) { return f.name !== name; }); });
+            }
+
+            /* ---- Drag-and-drop from palette to SVG ---- */
+            function startForceDrag(force, e) {
+                if (checked) return;
+                e.preventDefault();
+                e.stopPropagation();
+                dragInfoRef.current = force;
+                dragSourceRef.current = { type: 'palette' };
+                setDragName(force.name);
+                var cx2, cy2;
+                if (e.touches && e.touches.length > 0) { cx2 = e.touches[0].clientX; cy2 = e.touches[0].clientY; }
+                else { cx2 = e.clientX; cy2 = e.clientY; }
+                setDragPos({ x: cx2, y: cy2 });
+            }
+
+            /* Drag an already-placed arrow to reposition or remove */
+            function startPlacedDrag(idx, force, e) {
+                if (checked) return;
+                e.preventDefault();
+                e.stopPropagation();
+                dragInfoRef.current = { name: force.name, nameEn: force.nameEn };
+                dragSourceRef.current = { type: 'placed', origForce: force };
+                setDragName(force.name);
+                var cx2, cy2;
+                if (e.touches && e.touches.length > 0) { cx2 = e.touches[0].clientX; cy2 = e.touches[0].clientY; }
+                else { cx2 = e.clientX; cy2 = e.clientY; }
+                setDragPos({ x: cx2, y: cy2 });
+                /* Temporarily remove from placed so zones appear */
+                setPlaced(function(prev) { return prev.filter(function(_, i) { return i !== idx; }); });
+            }
+
+            /* Compute which of the 6 zones the cursor is in relative to object */
+            function computeZone(svgX, svgY) {
+                var dx = svgX - CX;
+                var dy = svgY - CY;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < OBJ_R * 0.4) return null;
+                /* Clearly above → up */
+                if (dy < -OBJ_R * 0.3 && Math.abs(dx) < Math.abs(dy)) return 'up';
+                /* Left / right at object center level */
+                if (dy < OBJ_R * 0.5 && Math.abs(dx) > OBJ_R * 0.5) {
+                    return dx >= 0 ? 'right' : 'left';
+                }
+                /* Still above center → up */
+                if (dy < 0) return 'up';
+                /* Contact surface area (below object, to the side) */
+                if (dy < OBJ_R + 50 && Math.abs(dx) > 8) {
+                    return dx < 0 ? 'bottom-left' : 'bottom-right';
+                }
+                return 'down';
+            }
+
+            useEffect(function() {
+                function onDragMove(e) {
+                    if (!dragInfoRef.current) return;
+                    e.preventDefault();
+                    var cx2, cy2;
+                    if (e.touches && e.touches.length > 0) { cx2 = e.touches[0].clientX; cy2 = e.touches[0].clientY; }
+                    else { cx2 = e.clientX; cy2 = e.clientY; }
+                    setDragPos({ x: cx2, y: cy2 });
+                    var svg = fbdSvgRef.current;
+                    if (svg) {
+                        var rect = svg.getBoundingClientRect();
+                        var over = cx2 >= rect.left && cx2 <= rect.right && cy2 >= rect.top && cy2 <= rect.bottom;
+                        setSvgHover(over);
+                        if (over) {
+                            var svgX = (cx2 - rect.left) / rect.width * VW;
+                            var svgY = (cy2 - rect.top) / rect.height * VH;
+                            setHoverZone(computeZone(svgX, svgY));
+                        } else {
+                            setHoverZone(null);
+                        }
+                    }
+                }
+                function onDragEnd(e) {
+                    if (!dragInfoRef.current) return;
+                    var force = dragInfoRef.current;
+                    var source = dragSourceRef.current;
+                    dragInfoRef.current = null;
+                    dragSourceRef.current = null;
+                    var lastZone = hoverZone;
+                    setDragPos(null); setDragName(null); setSvgHover(false); setHoverZone(null);
+                    var svg = fbdSvgRef.current;
+                    if (!svg) {
+                        /* No SVG ref — if was a placed arrow, it's already removed */
+                        return;
+                    }
+                    var rect = svg.getBoundingClientRect();
+                    var cx2, cy2;
+                    if (e.changedTouches && e.changedTouches.length > 0) { cx2 = e.changedTouches[0].clientX; cy2 = e.changedTouches[0].clientY; }
+                    else { cx2 = e.clientX; cy2 = e.clientY; }
+                    var inSvg = cx2 >= rect.left && cx2 <= rect.right && cy2 >= rect.top && cy2 <= rect.bottom;
+                    if (inSvg) {
+                        var svgX = (cx2 - rect.left) / rect.width * VW;
+                        var svgY = (cy2 - rect.top) / rect.height * VH;
+                        var zone = computeZone(svgX, svgY) || lastZone;
+                        if (zone) {
+                            addForce(force.name, force.nameEn, zone);
+                        } else if (source && source.type === 'placed') {
+                            /* Dropped on center / invalid → restore original */
+                            var orig = source.origForce;
+                            setPlaced(function(prev) { return prev.concat([orig]); });
+                        }
+                    } else {
+                        /* Dropped outside SVG */
+                        if (source && source.type === 'placed') {
+                            /* Arrow removed (already filtered out at drag start) — done */
+                        }
+                    }
+                }
+                window.addEventListener('mousemove', onDragMove);
+                window.addEventListener('mouseup', onDragEnd);
+                window.addEventListener('touchmove', onDragMove, { passive: false });
+                window.addEventListener('touchend', onDragEnd);
+                return function() {
+                    window.removeEventListener('mousemove', onDragMove);
+                    window.removeEventListener('mouseup', onDragEnd);
+                    window.removeEventListener('touchmove', onDragMove);
+                    window.removeEventListener('touchend', onDragEnd);
+                };
+            }, [checked, hoverZone]);
+
+            function checkAnswer() {
+                setChecked(true);
+                var ans = scene.answer;
+                var correct = true;
+                /* Full match requires name + dir + origin */
+                for (var ai = 0; ai < ans.length; ai++) {
+                    var found = false;
+                    for (var pi = 0; pi < placed.length; pi++) {
+                        if (placed[pi].name === ans[ai].name && placed[pi].dir === ans[ai].dir && placed[pi].origin === (ans[ai].origin || 'edge')) { found = true; break; }
+                    }
+                    if (!found) correct = false;
+                }
+                if (placed.length !== ans.length) correct = false;
+                /* Missing forces */
+                var missing = [];
+                for (var mi = 0; mi < ans.length; mi++) {
+                    var mf = false;
+                    for (var mp = 0; mp < placed.length; mp++) {
+                        if (placed[mp].name === ans[mi].name) { mf = true; break; }
+                    }
+                    if (!mf) missing.push(ans[mi].name + ' (' + FBD_DIR_LABELS[ans[mi].dir] + ')');
+                }
+                /* Wrong placement: name present but dir or origin wrong */
+                var wrongDir = [];
+                for (var wi = 0; wi < placed.length; wi++) {
+                    var nameMatch = false;
+                    var fullMatch = false;
+                    for (var wa = 0; wa < ans.length; wa++) {
+                        if (placed[wi].name === ans[wa].name) {
+                            nameMatch = true;
+                            if (placed[wi].dir === ans[wa].dir && placed[wi].origin === (ans[wa].origin || 'edge')) fullMatch = true;
+                        }
+                    }
+                    if (nameMatch && !fullMatch) {
+                        /* Determine what's wrong */
+                        var aDir = '', aOrigin = '';
+                        for (var wd = 0; wd < ans.length; wd++) {
+                            if (ans[wd].name === placed[wi].name) { aDir = ans[wd].dir; aOrigin = ans[wd].origin || 'edge'; break; }
+                        }
+                        if (placed[wi].dir !== aDir) {
+                            wrongDir.push(placed[wi].name + '：你放了 ' + FBD_DIR_LABELS[placed[wi].dir] + '，正確應該是 ' + FBD_DIR_LABELS[aDir]);
+                        } else if (placed[wi].origin !== aOrigin && aOrigin === 'bottom') {
+                            wrongDir.push(placed[wi].name + '：方向正確，但應該放在接觸面的位置（↙↘），不是側面');
+                        }
+                    }
+                }
+                /* Extra forces (name not in answer) */
+                var extra = [];
+                for (var ei = 0; ei < placed.length; ei++) {
+                    var nameInAns = false;
+                    for (var ea = 0; ea < ans.length; ea++) {
+                        if (placed[ei].name === ans[ea].name) { nameInAns = true; break; }
+                    }
+                    if (!nameInAns) extra.push(placed[ei].name);
+                }
+                setResult({ correct: correct, missing: missing, extra: extra, wrongDir: wrongDir });
+            }
+
+            function resetScene() { setPlaced([]); setChecked(false); setResult(null); setShowHint(false); }
+
+            function showAnswerForce() {
+                setPlaced(scene.answer.map(function(a) { return { dir: a.dir, name: a.name, nameEn: a.nameEn, origin: a.origin || 'edge' }; }));
+                setChecked(true);
+                setResult({ correct: true, missing: [], extra: [] });
+            }
+
+            /* Compute stacking offsets grouped by (origin, dir) */
+            function computeFBDLayout(forces) {
+                var groups = {};
+                for (var fi = 0; fi < forces.length; fi++) {
+                    var key = (forces[fi].origin || 'edge') + '_' + forces[fi].dir;
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(fi);
+                }
+                var offsets = {};
+                var keys = Object.keys(groups);
+                for (var ki = 0; ki < keys.length; ki++) {
+                    var grp = groups[keys[ki]];
+                    var n = grp.length;
+                    for (var gi = 0; gi < n; gi++) {
+                        offsets[grp[gi]] = (gi - (n - 1) / 2) * SPACING;
+                    }
+                }
+                return offsets;
+            }
+            var fbdLayout = computeFBDLayout(placed);
+
+            /* Get arrow coordinates based on origin and direction */
+            function getFBDCoords(idx, f) {
+                var off = fbdLayout[idx] || 0;
+                var origin = f.origin || 'edge';
+                var sx, sy, ex, ey;
+
+                if (origin === 'center') {
+                    /* Gravity: from center of object */
+                    if (f.dir === 'down') { sx = CX + off; sy = CY; ex = sx; ey = sy + ARR_LEN; }
+                    else if (f.dir === 'up') { sx = CX + off; sy = CY; ex = sx; ey = sy - ARR_LEN; }
+                    else if (f.dir === 'right') { sx = CX; sy = CY + off; ex = sx + ARR_LEN; ey = sy; }
+                    else { sx = CX; sy = CY + off; ex = sx - ARR_LEN; ey = sy; }
+                } else if (origin === 'bottom') {
+                    /* Contact surface at bottom: friction, normal */
+                    var botY = CY + OBJ_R;
+                    if (f.dir === 'up') { sx = CX + off; sy = botY; ex = sx; ey = botY - ARR_LEN; }
+                    else if (f.dir === 'left') { sx = CX + off; sy = botY; ex = sx - ARR_LEN; ey = botY; }
+                    else if (f.dir === 'right') { sx = CX + off; sy = botY; ex = sx + ARR_LEN; ey = botY; }
+                    else { sx = CX + off; sy = botY; ex = sx; ey = botY + ARR_LEN; }
+                } else if (origin === 'top') {
+                    /* Attachment at top: tension */
+                    var topY = CY - OBJ_R;
+                    if (f.dir === 'up') { sx = CX + off; sy = topY; ex = sx; ey = topY - ARR_LEN; }
+                    else if (f.dir === 'down') { sx = CX + off; sy = topY; ex = sx; ey = topY + ARR_LEN; }
+                    else if (f.dir === 'left') { sx = CX + off; sy = topY; ex = sx - ARR_LEN; ey = topY; }
+                    else { sx = CX + off; sy = topY; ex = sx + ARR_LEN; ey = topY; }
+                } else {
+                    /* edge: start from the nearest edge in the force direction */
+                    if (f.dir === 'right') { sx = CX + OBJ_R; sy = CY + off; ex = sx + ARR_LEN; ey = sy; }
+                    else if (f.dir === 'left') { sx = CX - OBJ_R; sy = CY + off; ex = sx - ARR_LEN; ey = sy; }
+                    else if (f.dir === 'up') { sx = CX + off; sy = CY - OBJ_R; ex = sx; ey = sy - ARR_LEN; }
+                    else { sx = CX + off; sy = CY + OBJ_R; ex = sx; ey = sy + ARR_LEN; }
+                }
+                return { sx: sx, sy: sy, ex: ex, ey: ey };
+            }
+
+            function fbdArrowhead(tipX, tipY, angle, size) {
+                var p1x = tipX - size * Math.cos(angle - Math.PI / 7);
+                var p1y = tipY - size * Math.sin(angle - Math.PI / 7);
+                var p2x = tipX - size * Math.cos(angle + Math.PI / 7);
+                var p2y = tipY - size * Math.sin(angle + Math.PI / 7);
+                return tipX + ',' + tipY + ' ' + p1x + ',' + p1y + ' ' + p2x + ',' + p2y;
+            }
+
+            function fbdDirAngle(dir) {
+                if (dir === 'right') return 0;
+                if (dir === 'left') return Math.PI;
+                if (dir === 'up') return -Math.PI / 2;
+                return Math.PI / 2;
+            }
+
+            var relevantForces;
+            if (scene.id === 'tug-war') {
+                relevantForces = palette.filter(function(p) { return p.name === '左隊拉力' || p.name === '右隊拉力' || p.name === '重力'; });
+            } else {
+                relevantForces = palette.filter(function(p) { return p.name !== '左隊拉力' && p.name !== '右隊拉力'; });
+            }
+
+            function isPlaced(name) {
+                for (var ci = 0; ci < placed.length; ci++) { if (placed[ci].name === name) return true; }
+                return false;
+            }
+
+            useEffect(function() { lucide.createIcons(); });
+
+            /* Scene decorations */
+            var sceneDecor = [];
+            var contactY = CY + OBJ_R + 2;
+            if (scene.sceneElements === 'table') {
+                sceneDecor.push(html`<line key="tbl" x1="50" y1=${contactY} x2=${VW - 50} y2=${contactY} stroke="#78716c" stroke-width="3" stroke-linecap="round" />`);
+                sceneDecor.push(html`<rect key="tbl-f" x="50" y=${contactY} width=${VW - 100} height="12" rx="2" fill="#d6d3d1" opacity="0.3" />`);
+                sceneDecor.push(html`<text key="tbl-t" x=${VW - 48} y=${contactY + 22} fill="#a8a29e" font-size="11" opacity="0.7">${"桌面"}</text>`);
+            } else if (scene.sceneElements === 'air') {
+                for (var aci = 0; aci < 6; aci++) {
+                    var acx = 30 + aci * 70;
+                    var acy = CY + 70 + (aci % 3) * 25;
+                    sceneDecor.push(html`<text key=${'cl' + aci} x=${acx} y=${acy} fill="#94a3b8" font-size=${16 + (aci % 2) * 8} opacity="0.15">${"☁"}</text>`);
+                }
+                sceneDecor.push(html`<text key="tree" x=${VW - 60} y=${CY - 30} fill="#94a3b8" font-size="36" opacity="0.2">${"🌳"}</text>`);
+            } else if (scene.sceneElements === 'floor-push') {
+                sceneDecor.push(html`<line key="flr" x1="20" y1=${contactY} x2=${VW - 20} y2=${contactY} stroke="#78716c" stroke-width="3" stroke-linecap="round" />`);
+                sceneDecor.push(html`<rect key="flr-f" x="20" y=${contactY} width=${VW - 40} height="12" rx="2" fill="#d6d3d1" opacity="0.3" />`);
+                sceneDecor.push(html`<text key="flr-t" x=${VW - 28} y=${contactY + 22} fill="#a8a29e" font-size="11" opacity="0.7">${"地面"}</text>`);
+                sceneDecor.push(html`<text key="pers" x=${CX - OBJ_R - 50} y=${CY + 12} fill="#94a3b8" font-size="36" opacity="0.3" style=${{ pointerEvents:'none' }}>${"🧑"}</text>`);
+            } else if (scene.sceneElements === 'string') {
+                sceneDecor.push(html`<line key="str" x1=${CX} y1="24" x2=${CX} y2=${CY - OBJ_R} stroke="#78716c" stroke-width="2.5" stroke-dasharray="6,4" />`);
+                sceneDecor.push(html`<rect key="ceil" x="50" y="18" width=${VW - 100} height="8" rx="4" fill="#a8a29e" opacity="0.35" />`);
+                sceneDecor.push(html`<text key="ceil-t" x=${VW - 48} y="34" fill="#a8a29e" font-size="11" opacity="0.7">${"天花板"}</text>`);
+            } else if (scene.sceneElements === 'tug') {
+                sceneDecor.push(html`<text key="lt" x="20" y=${CY + 14} fill="#94a3b8" font-size="32" opacity="0.3">${"🏃"}</text>`);
+                sceneDecor.push(html`<text key="rt" x=${VW - 55} y=${CY + 14} fill="#94a3b8" font-size="32" opacity="0.3" style=${{ transform:'scaleX(-1)', transformOrigin: (VW - 38) + 'px ' + CY + 'px' }}>${"🏃"}</text>`);
+                sceneDecor.push(html`<line key="rl" x1="60" y1=${CY} x2=${CX - OBJ_R} y2=${CY} stroke="#a8a29e" stroke-width="4" stroke-linecap="round" />`);
+                sceneDecor.push(html`<line key="rr" x1=${CX + OBJ_R} y1=${CY} x2=${VW - 60} y2=${CY} stroke="#a8a29e" stroke-width="4" stroke-linecap="round" />`);
+            }
+
+            return html`<div className="space-y-5" style=${{ position:'relative' }}>
+                <div className="p-4 rounded-xl border" style=${{ background:'var(--quiz-bg)', borderColor:'var(--quiz-border)' }}>
+                    <p className="text-sm font-bold mb-2" style=${{ color:'var(--quiz-text)' }}>${"選擇情景："}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        ${fbdScenarios.map(function(s, i) {
+                            var isActive = i === scnIdx;
+                            return html`<button key=${s.id} onClick=${function() { selectScene(i); }}
+                                className=${"border py-2 px-3 rounded-lg text-xs font-bold transition hover:shadow-md " + (isActive ? 'ring-2 ring-offset-1' : '')}
+                                style=${{ borderColor: isActive ? '#f59e0b' : 'var(--card-border)', background: isActive ? 'var(--quiz-bg)' : 'var(--card-bg)', color:'var(--text-primary)', ringColor: '#f59e0b' }}>
+                                ${s.title}
+                            </button>`;
+                        })}
+                    </div>
+                </div>
+
+                <div className="p-4 rounded-xl border" style=${{ background:'var(--card-bg)', borderColor:'var(--card-border)' }}>
+                    <p className="text-sm leading-relaxed font-bold" style=${{ color:'var(--text-primary)' }}>${scene.desc}</p>
+                    <p className="text-xs mt-1" style=${{ color:'var(--text-secondary)' }}>${"請為「" + scene.emoji + "」畫出隔離體圖：把力拖到正確的方向放開。"}</p>
+                </div>
+
+                <div className=${"rounded-2xl overflow-hidden border-2 shadow-inner transition-all " + (svgHover && dragName ? 'ring-4 ring-blue-400/40' : '')} style=${{ borderColor: svgHover && dragName ? '#60a5fa' : 'var(--card-border)' }}>
+                    <svg ref=${fbdSvgRef} viewBox=${"0 0 " + VW + " " + VH} className="w-full" style=${{ background:'var(--surface)', minHeight:'240px', touchAction:'none' }}>
+                        ${sceneDecor}
+
+                        ${/* 6 directional drop zones when dragging */''}
+                        ${dragName && !isPlaced(dragName) && function() {
+                            var ZW = 44, ZH = 42;
+                            var BZW = 56, BZH = 34;
+                            var GAP = OBJ_R + 8;
+                            var surfaceY = CY + OBJ_R;
+                            var zones = [
+                                { dir:'up',           x: CX - ZW/2,           y: CY - GAP - ZH,          w: ZW,  h: ZH,  arrow:'↑',  label:'' },
+                                { dir:'left',         x: CX - GAP - ZW,       y: CY - ZH/2 - 6,          w: ZW,  h: ZH,  arrow:'←',  label:'' },
+                                { dir:'right',        x: CX + GAP,            y: CY - ZH/2 - 6,          w: ZW,  h: ZH,  arrow:'→',  label:'' },
+                                { dir:'bottom-left',  x: CX - GAP - BZW,      y: surfaceY - BZH/2,       w: BZW, h: BZH, arrow:'↙',  label:'接觸面' },
+                                { dir:'bottom-right', x: CX + GAP,            y: surfaceY - BZH/2,       w: BZW, h: BZH, arrow:'↘',  label:'接觸面' },
+                                { dir:'down',         x: CX - ZW/2,           y: surfaceY + BZH/2 + 6,   w: ZW,  h: ZH,  arrow:'↓',  label:'' }
+                            ];
+                            return html`<g>
+                                ${zones.map(function(z) {
+                                    var active = hoverZone === z.dir;
+                                    var fc = FBD_FORCE_COLORS[dragName] || '#60a5fa';
+                                    return html`<g key=${z.dir}>
+                                        <rect x=${z.x} y=${z.y} width=${z.w} height=${z.h} rx="14"
+                                            fill=${active ? fc + '30' : '#94a3b812'}
+                                            stroke=${active ? fc : '#94a3b8'}
+                                            stroke-width=${active ? 2.5 : 1.5}
+                                            stroke-dasharray=${active ? '0' : '6,4'}
+                                            opacity=${active ? 1 : 0.45}>
+                                            ${active && html`<animate attributeName="opacity" values="1;0.7;1" dur="0.8s" repeatCount="indefinite" />`}
+                                        </rect>
+                                        <text x=${z.x + z.w/2} y=${z.y + z.h/2 + (z.label ? -5 : 1)}
+                                            text-anchor="middle" dominant-baseline="middle"
+                                            fill=${active ? fc : '#94a3b8'}
+                                            font-size=${active ? '22' : '18'}
+                                            font-weight="bold"
+                                            opacity=${active ? 1 : 0.5}
+                                            style=${{ pointerEvents:'none' }}>
+                                            ${z.arrow}
+                                        </text>
+                                        ${z.label && html`<text x=${z.x + z.w/2} y=${z.y + z.h/2 + 12}
+                                            text-anchor="middle" dominant-baseline="middle"
+                                            fill=${active ? fc : '#94a3b8'}
+                                            font-size="9"
+                                            opacity=${active ? 0.9 : 0.4}
+                                            style=${{ pointerEvents:'none' }}>
+                                            ${z.label}
+                                        </text>`}
+                                    </g>`;
+                                })}
+                                ${!svgHover && html`<text x=${CX} y=${VH - 14} text-anchor="middle" fill="#94a3b8" font-size="11" opacity="0.5" style=${{ pointerEvents:'none' }}>${"拖到箭嘴方向的位置放開"}</text>`}
+                            </g>`;
+                        }()}
+
+                        ${/* Placed force arrows */''}
+                        ${placed.map(function(f, idx) {
+                            var co = getFBDCoords(idx, f);
+                            var angle = fbdDirAngle(f.dir);
+                            var fc = FBD_FORCE_COLORS[f.name] || '#64748b';
+                            var isCorrect = false;
+                            var isWrong = false;
+                            if (checked && result) {
+                                var fnd = false;
+                                for (var ca = 0; ca < scene.answer.length; ca++) {
+                                    if (scene.answer[ca].dir === f.dir && scene.answer[ca].name === f.name) { fnd = true; break; }
+                                }
+                                if (fnd) isCorrect = true; else isWrong = true;
+                            }
+                            var lbX, lbY, lbAnchor;
+                            if (f.dir === 'right') { lbX = co.ex + 8; lbY = co.ey; lbAnchor = 'start'; }
+                            else if (f.dir === 'left') { lbX = co.ex - 8; lbY = co.ey; lbAnchor = 'end'; }
+                            else if (f.dir === 'up') { lbX = co.ex; lbY = co.ey - 10; lbAnchor = 'middle'; }
+                            else { lbX = co.ex; lbY = co.ey + 16; lbAnchor = 'middle'; }
+                            var op = checked && isWrong ? 0.35 : 0.9;
+
+                            return html`<g key=${'f' + idx} style=${{ cursor: checked ? 'default' : 'grab' }}
+                                onMouseDown=${function(e) { if (!checked) startPlacedDrag(idx, f, e); }}
+                                onTouchStart=${function(e) { if (!checked) startPlacedDrag(idx, f, e); }}>
+                                ${!checked && html`<line x1=${co.sx} y1=${co.sy} x2=${co.ex} y2=${co.ey} stroke="transparent" stroke-width="22" style=${{ cursor:'grab' }} />`}
+                                <line x1=${co.sx} y1=${co.sy} x2=${co.ex} y2=${co.ey} stroke=${fc} stroke-width="3.5" stroke-linecap="round" opacity=${op} />
+                                <polygon points=${fbdArrowhead(co.ex, co.ey, angle, 12)} fill=${fc} opacity=${op} />
+                                <text x=${lbX} y=${lbY} text-anchor=${lbAnchor} dominant-baseline="middle" fill=${fc} font-weight="bold" font-size="13" opacity=${op} style=${{ pointerEvents:'none' }}>
+                                    ${f.nameEn}
+                                </text>
+                                ${checked && isCorrect && html`<text x=${lbX} y=${lbY + (f.dir === 'down' ? 15 : f.dir === 'up' ? -13 : 15)} text-anchor=${lbAnchor} dominant-baseline="middle" fill="#16a34a" font-weight="bold" font-size="15" style=${{ pointerEvents:'none' }}>${"✓"}</text>`}
+                                ${checked && isWrong && html`<text x=${lbX} y=${lbY + (f.dir === 'down' ? 15 : f.dir === 'up' ? -13 : 15)} text-anchor=${lbAnchor} dominant-baseline="middle" fill="#dc2626" font-weight="bold" font-size="15" style=${{ pointerEvents:'none' }}>${"✗"}</text>`}
+                            </g>`;
+                        })}
+
+                        ${/* Object emoji */''}
+                        <text x=${CX} y=${CY + scene.emojiSize * 0.18} text-anchor="middle" dominant-baseline="middle"
+                            font-size=${scene.emojiSize} style=${{ pointerEvents:'none', filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}>
+                            ${scene.emoji}
+                        </text>
+
+                        ${!checked && placed.length === 0 && !dragName && html`<text x=${CX} y=${VH - 16} text-anchor="middle" fill="#94a3b8" font-size="12" opacity="0.55" style=${{ pointerEvents:'none' }}>${"⬇ 將下方的力拖到物體的上下左右"}</text>`}
+                    </svg>
+                </div>
+
+                ${!checked && html`<div>
+                    <p className="text-xs font-bold mb-2" style=${{ color:'var(--text-secondary)' }}>${"按住並拖到物體周圍來設定方向（拖動已有箭嘴可更改位置，拖到圖框外可移除）："}</p>
+                    <div className="flex flex-wrap gap-2">
+                        ${relevantForces.map(function(p) {
+                            var active = isPlaced(p.name);
+                            var isDragging = dragName === p.name;
+                            var fc = FBD_FORCE_COLORS[p.name] || '#64748b';
+                            return html`<div key=${p.name}
+                                onMouseDown=${function(e) { if (!active) startForceDrag(p, e); }}
+                                onTouchStart=${function(e) { if (!active) startForceDrag(p, e); }}
+                                className=${"py-2.5 px-3.5 rounded-lg text-xs font-bold transition border-2 select-none " + (active ? 'opacity-40' : isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md')}
+                                style=${{ borderColor: fc, background: active ? fc + '18' : 'var(--card-bg)', color: active ? fc : 'var(--text-primary)', cursor: active ? 'default' : 'grab', userSelect:'none', WebkitUserSelect:'none', touchAction:'none' }}>
+                                ${active ? '✓ ' : ''}${p.icon + " " + p.name + " (" + p.nameEn + ")"}
+                            </div>`;
+                        })}
+                    </div>
+                </div>`}
+
+                <div className="flex flex-wrap gap-3">
+                    ${!checked && placed.length > 0 && html`<button onClick=${checkAnswer}
+                        className="flex-1 py-3 rounded-xl font-bold text-sm text-white transition-all hover:shadow-lg active:scale-95"
+                        style=${{ background:'linear-gradient(135deg, #f59e0b, #d97706)', minWidth:'120px' }}>
+                        ${"✅ 檢查答案"}
+                    </button>`}
+                    ${!checked && html`<button onClick=${function() { setShowHint(function(p) { return !p; }); }}
+                        className="py-3 px-5 rounded-xl font-bold text-sm border-2 transition-all hover:shadow-md"
+                        style=${{ borderColor:'var(--accent-blue)', color:'var(--accent-blue)', background:'transparent' }}>
+                        ${showHint ? "🙈 隱藏提示" : "💡 提示"}
+                    </button>`}
+                    ${!checked && html`<button onClick=${showAnswerForce}
+                        className="py-3 px-5 rounded-xl font-bold text-sm border-2 transition-all hover:shadow-md"
+                        style=${{ borderColor:'#94a3b8', color:'var(--text-secondary)', background:'transparent' }}>
+                        ${"👁 顯示答案"}
+                    </button>`}
+                    ${checked && html`<button onClick=${resetScene}
+                        className="flex-1 py-3 rounded-xl font-bold text-sm text-white transition-all hover:shadow-lg active:scale-95"
+                        style=${{ background:'linear-gradient(135deg, #3b82f6, #2563eb)', minWidth:'120px' }}>
+                        ${"🔄 重新嘗試"}
+                    </button>`}
+                    ${checked && scnIdx < fbdScenarios.length - 1 && html`<button onClick=${function() { selectScene(scnIdx + 1); }}
+                        className="flex-1 py-3 rounded-xl font-bold text-sm text-white transition-all hover:shadow-lg active:scale-95"
+                        style=${{ background:'linear-gradient(135deg, #22c55e, #16a34a)', minWidth:'120px' }}>
+                        ${"➡️ 下一題"}
+                    </button>`}
+                </div>
+
+                ${showHint && !checked && html`<div className="p-4 rounded-xl border-2 border-dashed" style=${{ borderColor:'var(--accent-blue)', background:'var(--card-bg)' }}>
+                    <p className="text-sm font-bold" style=${{ color:'var(--accent-blue)' }}>${"💡 提示："}</p>
+                    <p className="text-sm mt-1" style=${{ color:'var(--text-secondary)' }}>${scene.hint}</p>
+                    <p className="text-xs mt-2 opacity-70" style=${{ color:'var(--text-secondary)' }}>${"這個情景需要 " + scene.answer.length + " 道力。"}</p>
+                </div>`}
+
+                ${checked && result && html`<div className="p-5 rounded-xl border-2" style=${{ background: result.correct ? '#dcfce7' : '#fef2f2', borderColor: result.correct ? '#22c55e' : '#ef4444' }}>
+                    ${result.correct && html`<div>
+                        <p className="text-lg font-black mb-2" style=${{ color:'#16a34a' }}>${"🎉 完全正確！"}</p>
+                        <p className="text-sm" style=${{ color:'#166534' }}>${"你成功辨認了所有作用在 " + scene.emoji + " 上的力，並正確畫出隔離體圖。"}</p>
+                        <div className="mt-3 p-3 rounded-lg" style=${{ background:'#f0fdf4' }}>
+                            <p className="text-xs font-bold mb-1" style=${{ color:'#166534' }}>${"📝 這些力是："}</p>
+                            ${scene.answer.map(function(a) {
+                                return html`<p key=${a.name} className="text-sm" style=${{ color:'#15803d' }}>${"• " + a.name + " (" + a.nameEn + ") — " + FBD_DIR_LABELS[a.dir]}</p>`;
+                            })}
+                        </div>
+                    </div>`}
+                    ${!result.correct && html`<div>
+                        <p className="text-lg font-black mb-2" style=${{ color:'#dc2626' }}>${"❌ 還未完全正確"}</p>
+                        ${result.wrongDir && result.wrongDir.length > 0 && html`<div className="mb-2">
+                            <p className="text-sm font-bold" style=${{ color:'#ea580c' }}>${"🔄 方向錯誤："}</p>
+                            ${result.wrongDir.map(function(w) { return html`<p key=${w} className="text-sm ml-3" style=${{ color:'#c2410c' }}>${"• " + w}</p>`; })}
+                        </div>`}
+                        ${result.missing.length > 0 && html`<div className="mb-2">
+                            <p className="text-sm font-bold" style=${{ color:'#dc2626' }}>${"遺漏了："}</p>
+                            ${result.missing.map(function(m) { return html`<p key=${m} className="text-sm ml-3" style=${{ color:'#b91c1c' }}>${"• " + m}</p>`; })}
+                        </div>`}
+                        ${result.extra.length > 0 && html`<div className="mb-2">
+                            <p className="text-sm font-bold" style=${{ color:'#dc2626' }}>${"多餘的力："}</p>
+                            ${result.extra.map(function(m) { return html`<p key=${m} className="text-sm ml-3" style=${{ color:'#b91c1c' }}>${"• " + m}</p>`; })}
+                        </div>`}
+                        <p className="text-sm mt-2" style=${{ color:'#92400e' }}>${"提示：這個情景需要 " + scene.answer.length + " 道力。再試一次吧！"}</p>
+                    </div>`}
+                </div>`}
+
+                ${/* Floating ghost arrow while dragging */''}
+                ${dragPos && dragName && function() {
+                    var fc = FBD_FORCE_COLORS[dragName] || '#64748b';
+                    var gW = 90, gH = 90;
+                    var gcx = gW / 2, gcy = gH / 2;
+                    var aLen = 30, aHead = 10;
+                    /* Arrow endpoint based on zone direction */
+                    var ax = 0, ay = 0;
+                    if (hoverZone === 'right' || hoverZone === 'bottom-right') { ax = aLen; ay = 0; }
+                    else if (hoverZone === 'left' || hoverZone === 'bottom-left') { ax = -aLen; ay = 0; }
+                    else if (hoverZone === 'up') { ax = 0; ay = -aLen; }
+                    else if (hoverZone === 'down') { ax = 0; ay = aLen; }
+                    var hasDir = hoverZone !== null;
+                    /* Arrowhead triangle points */
+                    var headPts = '';
+                    if (hasDir) {
+                        var ang = Math.atan2(ay, ax);
+                        var tx = gcx + ax, ty = gcy + ay;
+                        var h1x = tx - aHead * Math.cos(ang - Math.PI / 6);
+                        var h1y = ty - aHead * Math.sin(ang - Math.PI / 6);
+                        var h2x = tx - aHead * Math.cos(ang + Math.PI / 6);
+                        var h2y = ty - aHead * Math.sin(ang + Math.PI / 6);
+                        headPts = tx + ',' + ty + ' ' + h1x + ',' + h1y + ' ' + h2x + ',' + h2y;
+                    }
+                    return html`<div style=${{
+                        position:'fixed', left: (dragPos.x - gW / 2) + 'px', top: (dragPos.y - gH / 2 - 16) + 'px',
+                        width: gW + 'px', height: gH + 'px', pointerEvents:'none', zIndex:9999
+                    }}>
+                        <svg viewBox=${'0 0 ' + gW + ' ' + gH} width=${gW} height=${gH} style=${{ filter:'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}>
+                            <circle cx=${gcx} cy=${gcy} r=${gW / 2 - 2} fill=${fc + '18'} stroke=${fc} stroke-width="2.5" />
+                            ${hasDir && html`<g>
+                                <line x1=${gcx} y1=${gcy} x2=${gcx + ax} y2=${gcy + ay} stroke=${fc} stroke-width="4" stroke-linecap="round" />
+                                <polygon points=${headPts} fill=${fc} />
+                            </g>`}
+                            ${!hasDir && html`<g>
+                                <circle cx=${gcx} cy=${gcy} r="4" fill=${fc} opacity="0.5" />
+                                <circle cx=${gcx} cy=${gcy} r="12" fill="none" stroke=${fc} stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4">
+                                    <animate attributeName="r" values="10;16;10" dur="1s" repeatCount="indefinite" />
+                                </circle>
+                            </g>`}
+                            <text x=${gcx} y=${gH - 6} text-anchor="middle" fill=${fc} font-size="10" font-weight="bold" style=${{ pointerEvents:'none' }}>${dragName}</text>
+                        </svg>
+                    </div>`;
+                }()}
+            </div>`;
+        }
+
+        /* ===== Main App ===== */
+        function App() {
+            var tabS = useState('concepts'); var activeTab = tabS[0], setActiveTab = tabS[1];
+            var labTabS = useState('netforce'); var labTab = labTabS[0], setLabTab = labTabS[1];
+            var cardS = useState(0); var currentCard = cardS[0], setCurrentCard = cardS[1];
+            var flipS = useState(false); var isFlipped = flipS[0], setIsFlipped = flipS[1];
+            var dirS = useState('right'); var slideDirection = dirS[0], setSlideDirection = dirS[1];
+            var keyS = useState(0); var slideKey = keyS[0], setSlideKey = keyS[1];
+
+            /* Quiz state */
+            var qTypeS = useState('conceptual'); var qType = qTypeS[0], setQType = qTypeS[1];
+            var qIdxS = useState(0); var qIdx = qIdxS[0], setQIdx = qIdxS[1];
+            var fbS = useState(null); var feedback = fbS[0], setFeedback = fbS[1];
+            var selOptS = useState(null); var selectedOption = selOptS[0], setSelectedOption = selOptS[1];
+            var ansS = useState(''); var userAns = ansS[0], setUserAns = ansS[1];
+            var scoreS = useState({ correct:0, total:0 }); var score = scoreS[0], setScore = scoreS[1];
+
+            var touchStartX = useRef(0), touchStartY = useRef(0), touchMoved = useRef(false);
+
+            /* Flashcard nav */
+            var goToCard = useCallback(function(index, direction) {
+                if (index < 0 || index >= flashcardData.length) return;
+                setIsFlipped(false); setSlideDirection(direction);
+                setSlideKey(function(p) { return p+1; });
+                setTimeout(function() { setCurrentCard(index); }, 50);
+            }, []);
+            var nextCard = useCallback(function() { goToCard(currentCard+1, 'right'); }, [currentCard, goToCard]);
+            var prevCard = useCallback(function() { goToCard(currentCard-1, 'left'); }, [currentCard, goToCard]);
+
+            var handleTouchStart = useCallback(function(e) {
+                touchStartX.current = e.touches[0].clientX;
+                touchStartY.current = e.touches[0].clientY;
+                touchMoved.current = false;
+            }, []);
+            var handleTouchMove = useCallback(function(e) {
+                var dx = Math.abs(e.touches[0].clientX - touchStartX.current);
+                var dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+                if (dx > 10 || dy > 10) touchMoved.current = true;
+            }, []);
+            var handleTouchEnd = useCallback(function(e) {
+                if (!touchMoved.current) return;
+                var dx = e.changedTouches[0].clientX - touchStartX.current;
+                var dy = e.changedTouches[0].clientY - touchStartY.current;
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+                    if (dx < 0 && currentCard < flashcardData.length-1) goToCard(currentCard+1, 'right');
+                    else if (dx > 0 && currentCard > 0) goToCard(currentCard-1, 'left');
+                }
+            }, [currentCard, goToCard]);
+
+            useEffect(function() {
+                var handler = function(e) {
+                    if (activeTab !== 'concepts') return;
+                    if (e.key === 'ArrowRight') nextCard();
+                    else if (e.key === 'ArrowLeft') prevCard();
+                    else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setIsFlipped(function(f) { return !f; }); }
+                };
+                window.addEventListener('keydown', handler);
+                return function() { window.removeEventListener('keydown', handler); };
+            }, [activeTab, nextCard, prevCard]);
+
+            useEffect(function() { lucide.createIcons(); });
+
+            /* ===== Quiz Logic ===== */
+            var generateQuestion = function() {
+                var types = ['conceptual', 'netforce', 'fbd'];
+                var t = types[Math.floor(Math.random() * types.length)];
+                var idx;
+                if (t === 'conceptual') idx = Math.floor(Math.random() * conceptualPool.length);
+                else if (t === 'netforce') idx = Math.floor(Math.random() * netForcePool.length);
+                else idx = Math.floor(Math.random() * fbdPool.length);
+                setQType(t); setQIdx(idx);
+                setFeedback(null); setSelectedOption(null); setUserAns('');
+            };
+
+            useEffect(function() {
+                if (activeTab === 'practice' && !feedback) generateQuestion();
+            }, [activeTab]);
+
+            var getQuestionText = function() {
+                if (qType === 'conceptual') return conceptualPool[qIdx].question;
+                if (qType === 'netforce') return netForcePool[qIdx].text;
+                if (qType === 'fbd') return '以下哪項正確描述了「' + fbdPool[qIdx].scenario + '」的隔離體圖？';
+                return '';
+            };
+
+            var getOptions = function() {
+                if (qType === 'conceptual') return conceptualPool[qIdx].options;
+                if (qType === 'fbd') return fbdPool[qIdx].options;
+                return [];
+            };
+
+            var getCorrectIdx = function() {
+                if (qType === 'conceptual') return conceptualPool[qIdx].correct;
+                if (qType === 'fbd') return fbdPool[qIdx].correct;
+                return 0;
+            };
+
+            var getExplanation = function() {
+                if (qType === 'conceptual') return conceptualPool[qIdx].explanation;
+                if (qType === 'fbd') return fbdPool[qIdx].explanation;
+                return '';
+            };
+
+            var isMCQ = qType === 'conceptual' || qType === 'fbd';
+
+            var handleMCQSelect = function(idx) {
+                if (feedback) return;
+                setSelectedOption(idx);
+                var correctIdx = getCorrectIdx();
+                var isCorrect = idx === correctIdx;
+                setFeedback({ text: isCorrect ? '✅ 答對了！' : '❌ 答錯了！', isCorrect: isCorrect, correctIdx: correctIdx, explanation: getExplanation() });
+                setScore(function(p) { return { correct: p.correct + (isCorrect ? 1 : 0), total: p.total + 1 }; });
+            };
+
+            var checkNumerical = function() {
+                var ca = netForcePool[qIdx].answer;
+                var uv = parseFloat(userAns);
+                if (isNaN(uv)) { setFeedback({ text:'⚠️ 請輸入有效的數字！', isCorrect:false, explanation:'' }); return; }
+                var isCorrect = Math.abs(uv - ca) <= 0.5;
+                if (isCorrect) {
+                    setFeedback({ text:'✅ 答對了！計算非常精準！', isCorrect:true, explanation:'淨力 = ' + ca + ' N' + (netForcePool[qIdx].ansDir === 'balanced' ? '（兩力平衡）' : ' (' + (netForcePool[qIdx].ansDir === 'right' ? '向右' : '向上') + ')') });
+                    setScore(function(p) { return { correct:p.correct+1, total:p.total+1 }; });
+                } else {
+                    setFeedback({ text:'❌ 算錯囉。正確答案是 ' + ca + ' N', isCorrect:false, explanation:'淨力 = ' + ca + ' N。同方向的力相加，反方向的力相減。' });
+                    setScore(function(p) { return { correct:p.correct, total:p.total+1 }; });
+                }
+            };
+
+            var getOptionClassName = function(idx) {
+                var base = 'quiz-opt w-full text-left p-3 md:p-4 rounded-xl font-medium text-sm md:text-base';
+                if (!feedback) return base;
+                if (idx === feedback.correctIdx) return base + ' correct';
+                if (idx === selectedOption && !feedback.isCorrect) return base + ' wrong';
+                return base + ' dimmed';
+            };
+
+            var getCatInfo = function() {
+                if (qType === 'conceptual') return { label:'概念理解', icon:'lightbulb', color:'#d97706' };
+                if (qType === 'netforce') return { label:'計算淨力', icon:'git-merge', color:'#8b5cf6' };
+                if (qType === 'fbd') return { label:'隔離體圖', icon:'pen-tool', color:'#2563eb' };
+                return { label:'', icon:'help-circle', color:'#64748b' };
+            };
+
+            /* ===== Render ===== */
+            return html`<div className="max-w-4xl mx-auto rounded-2xl shadow-xl overflow-hidden" style=${{ background:'var(--card-bg)' }}>
+                <div className="bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 p-6 text-white relative overflow-hidden">
+                    <div className="absolute top-[-20px] right-[-20px] w-[100px] h-[100px] rounded-full bg-white opacity-5"></div>
+                    <div className="absolute bottom-[-30px] left-[20%] w-[80px] h-[80px] rounded-full bg-white opacity-5"></div>
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-black mb-2 tracking-tight">${"力的世界"}</h1>
+                            <p className="text-blue-100 flex items-center gap-2 text-sm">
+                                <i data-lucide="hand" className="w-4 h-4"></i> ${"認識各種力，學會畫隔離體圖和計算淨力！"}
+                            </p>
+                        </div>
+                        <div className="flex bg-white/15 p-1 rounded-xl gap-1 backdrop-blur-sm w-full md:w-auto">
+                            <button onClick=${function() { setActiveTab('concepts'); }} className=${"flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-2 md:px-3 py-2 rounded-lg transition-all text-xs md:text-sm font-bold " + (activeTab === 'concepts' ? 'bg-white text-indigo-700 shadow-md' : 'text-white/80 hover:bg-white/10')}>
+                                <i data-lucide="layers" className="w-4 h-4"></i> ${"重要概念"}
+                            </button>
+                            <button onClick=${function() { setActiveTab('lab'); }} className=${"flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-2 md:px-3 py-2 rounded-lg transition-all text-xs md:text-sm font-bold " + (activeTab === 'lab' ? 'bg-white text-indigo-700 shadow-md' : 'text-white/80 hover:bg-white/10')}>
+                                <i data-lucide="flask-conical" className="w-4 h-4"></i> ${"自由探索"}
+                            </button>
+                            <button onClick=${function() { setActiveTab('practice'); }} className=${"flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-2 md:px-3 py-2 rounded-lg transition-all text-xs md:text-sm font-bold " + (activeTab === 'practice' ? 'bg-white text-indigo-700 shadow-md' : 'text-white/80 hover:bg-white/10')}>
+                                <i data-lucide="clipboard-list" className="w-4 h-4"></i> ${"無限練習"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-5 md:p-8">
+
+                    ${activeTab === 'concepts' && html`<div className="space-y-6">
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
+                            ${flashcardData.map(function(card, i) {
+                                return html`<button key=${card.id} onClick=${function() { goToCard(i, i > currentCard ? 'right' : 'left'); }}
+                                    className=${"progress-dot w-3 h-3 rounded-full transition-all " + (i === currentCard ? 'active bg-blue-500 ring-4 ring-blue-200' : 'bg-slate-300 hover:bg-slate-400')}
+                                    title=${card.frontTitle} />`;
+                            })}
+                        </div>
+                        <div className="text-center text-sm font-bold" style=${{ color:'var(--text-secondary)' }}>
+                            <span className="mono">${currentCard+1}</span> / <span className="mono">${flashcardData.length}</span>
+                            <span className="ml-2 opacity-70">${"— " + flashcardData[currentCard].frontTitle}</span>
+                        </div>
+                        ${isFlipped && html`<div className="flashcard-overlay" onClick=${function(e) { e.stopPropagation(); setIsFlipped(false); }}></div>`}
+                        <div className="flex items-center gap-3 md:gap-5"
+                            onTouchStart=${handleTouchStart} onTouchMove=${handleTouchMove} onTouchEnd=${handleTouchEnd}>
+                            <button onClick=${prevCard} disabled=${currentCard === 0}
+                                className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+                                style=${{ background:'var(--card-bg)', border:'2px solid var(--card-border)' }}>
+                                <i data-lucide="chevron-left" className="w-5 h-5 md:w-6 md:h-6" style=${{ color:'var(--text-primary)' }}></i>
+                            </button>
+                            <div key=${slideKey} className=${"flex-1 " + (isFlipped ? 'flashcard-lifted ' : '') + (slideDirection === 'right' ? 'slide-in-right' : 'slide-in-left')}>
+                                <${Flashcard} card=${flashcardData[currentCard]} isFlipped=${isFlipped} onFlip=${function() { setIsFlipped(function(f) { return !f; }); }} />
+                            </div>
+                            <button onClick=${nextCard} disabled=${currentCard === flashcardData.length-1}
+                                className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+                                style=${{ background:'var(--card-bg)', border:'2px solid var(--card-border)' }}>
+                                <i data-lucide="chevron-right" className="w-5 h-5 md:w-6 md:h-6" style=${{ color:'var(--text-primary)' }}></i>
+                            </button>
+                        </div>
+                        <div className="text-center text-xs flex items-center justify-center gap-4 flex-wrap" style=${{ color:'var(--text-secondary)' }}>
+                            <span className="hidden md:flex items-center gap-1">
+                                <kbd className="px-2 py-0.5 rounded text-xs font-mono border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>${"←"}</kbd>
+                                <kbd className="px-2 py-0.5 rounded text-xs font-mono border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>${"→"}</kbd>
+                                ${"切換卡片"}
+                            </span>
+                            <span className="hidden md:flex items-center gap-1">
+                                <kbd className="px-2 py-0.5 rounded text-xs font-mono border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>${"空白鍵"}</kbd>
+                                ${"翻轉卡片"}
+                            </span>
+                            <span className="flex md:hidden items-center gap-1">
+                                <i data-lucide="move-horizontal" className="w-4 h-4"></i>
+                                ${"左右滑動切換 · 點擊翻轉"}
+                            </span>
+                        </div>
+                        <div className="border-t pt-6 mt-4" style=${{ borderColor:'var(--card-border)' }}>
+                            <h3 className="font-bold text-sm mb-3 flex items-center gap-2" style=${{ color:'var(--text-secondary)' }}>
+                                <i data-lucide="grid-3x3" className="w-4 h-4"></i> ${"全部概念一覽（點擊跳轉）"}
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                ${flashcardData.map(function(card, i) {
+                                    return html`<button key=${card.id} onClick=${function() { goToCard(i, i > currentCard ? 'right' : 'left'); }}
+                                        className=${"text-left p-3 rounded-lg border text-xs font-bold transition-all " + (i === currentCard ? 'ring-2 ring-blue-400' : 'hover:shadow-md')}
+                                        style=${{ background:'var(--surface)', borderColor:'var(--card-border)', color:'var(--text-primary)' }}>
+                                        <span className="opacity-50 mono mr-1">${(i+1) + "."}</span>
+                                        ${card.frontTitle}
+                                    </button>`;
+                                })}
+                            </div>
+                        </div>
+                    </div>`}
+
+                    ${activeTab === 'lab' && html`<div>
+                        <div className="flex gap-2 mb-5">
+                            <button onClick=${function() { setLabTab('netforce'); }}
+                                className=${"flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all " + (labTab === 'netforce' ? 'shadow-lg text-white' : 'border-2')}
+                                style=${labTab === 'netforce' ? { background:'linear-gradient(135deg, #3b82f6, #2563eb)' } : { borderColor:'var(--card-border)', background:'var(--card-bg)', color:'var(--text-primary)' }}>
+                                ${"🎯 實驗一：淨力探索"}
+                            </button>
+                            <button onClick=${function() { setLabTab('fbd'); }}
+                                className=${"flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all " + (labTab === 'fbd' ? 'shadow-lg text-white' : 'border-2')}
+                                style=${labTab === 'fbd' ? { background:'linear-gradient(135deg, #f59e0b, #d97706)' } : { borderColor:'var(--card-border)', background:'var(--card-bg)', color:'var(--text-primary)' }}>
+                                ${"📐 實驗二：隔離體圖"}
+                            </button>
+                        </div>
+
+                        ${labTab === 'netforce' && html`<div>
+                            <div className="mb-5 p-4 rounded-xl border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>
+                                <h3 className="font-bold text-base mb-2 flex items-center gap-2" style=${{ color:'var(--text-primary)' }}>
+                                    <i data-lucide="hand" className="w-5 h-5" style=${{ color:'var(--accent-blue)' }}></i> ${"淨力探索實驗室"}
+                                </h3>
+                                <p className="text-sm leading-relaxed" style=${{ color:'var(--text-secondary)' }}>
+                                    ${"在畫布上拖曳箭嘴來探索淨力！試試看不同的力組合會產生甚麼結果。"}
+                                </p>
+                                <ul className="text-sm mt-2 space-y-1" style=${{ color:'var(--text-secondary)' }}>
+                                    <li>${"👆 拖曳箭頭的圓圈 → 改變力的方向（↑↓←→）和大小"}</li>
+                                    <li>${"➕ 點擊「新增一道力」→ 增加更多力"}</li>
+                                    <li>${"🎯 試試讓淨力 = 0，看看甚麼是「平衡」！"}</li>
+                                    <li>${"🟣 紫色虛線箭嘴 = 淨力（所有力加起來的結果）"}</li>
+                                </ul>
+                            </div>
+                            <${ForceSimulation} />
+                        </div>`}
+
+                        ${labTab === 'fbd' && html`<div>
+                            <div className="mb-5 p-4 rounded-xl border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>
+                                <h3 className="font-bold text-base mb-2 flex items-center gap-2" style=${{ color:'var(--text-primary)' }}>
+                                    <i data-lucide="crosshair" className="w-5 h-5" style=${{ color:'#f59e0b' }}></i> ${"隔離體圖（Free-Body Diagram）"}
+                                </h3>
+                                <p className="text-sm leading-relaxed" style=${{ color:'var(--text-secondary)' }}>
+                                    ${"隔離體圖是分析力的重要工具。選擇一個情景，辨認作用在物體上的所有力，練習畫出正確的隔離體圖！"}
+                                </p>
+                                <ul className="text-sm mt-2 space-y-1" style=${{ color:'var(--text-secondary)' }}>
+                                    <li>${"1️⃣ 選擇一個情景（例如書本放在桌上）"}</li>
+                                    <li>${"2️⃣ 思考有哪些力作用在物體上"}</li>
+                                    <li>${"3️⃣ 按住力的按鈕，拖到物體的上下左右來選擇方向"}</li>
+                                    <li>${"4️⃣ 按「檢查答案」看看力和方向都答對了嗎！"}</li>
+                                </ul>
+                            </div>
+                            <${FBDExperiment} />
+                        </div>`}
+                    </div>`}
+
+                    ${activeTab === 'practice' && html`<div>
+                        <div className="p-6 rounded-xl border-2 shadow-sm" style=${{ background:'var(--quiz-bg)', borderColor:'var(--quiz-border)' }}>
+                            <div className="flex items-center justify-between border-b pb-3 mb-5" style=${{ borderColor:'var(--quiz-border)' }}>
+                                <h2 className="text-xl font-bold flex items-center gap-2" style=${{ color:'var(--quiz-text)' }}>
+                                    <i data-lucide="clipboard-list"></i> ${"隨機任務挑戰"}
+                                </h2>
+                                <div className="flex items-center gap-2 text-sm font-bold mono" style=${{ color:'var(--quiz-text)' }}>
+                                    <i data-lucide="trophy" className="w-4 h-4"></i>
+                                    <span>${score.correct + "/" + score.total}</span>
+                                    ${score.total > 0 && html`<span className="opacity-70">${"(" + Math.round(score.correct/score.total*100) + "%)"}</span>`}
+                                </div>
+                            </div>
+
+                            ${function() {
+                                var cat = getCatInfo();
+                                return html`<div className="flex items-center gap-2 mb-3">
+                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-white" style=${{ background: cat.color }}>
+                                        <i data-lucide=${cat.icon} className="w-3 h-3"></i> ${cat.label}
+                                    </span>
+                                </div>`;
+                            }()}
+
+                            <div className="p-5 rounded-xl shadow-sm mb-5 border" style=${{ background:'var(--quiz-q-bg)', borderColor:'var(--quiz-q-border)' }}>
+                                <div className="font-medium leading-relaxed text-base" style=${{ color:'var(--text-primary)' }}>${getQuestionText()}</div>
+                            </div>
+
+                            ${isMCQ && html`<div className="flex flex-col gap-2.5">
+                                ${getOptions().map(function(opt, i) {
+                                    return html`<button key=${i} onClick=${function() { handleMCQSelect(i); }}
+                                        disabled=${feedback !== null}
+                                        className=${getOptionClassName(i)}>
+                                        <span className="font-bold mr-2 opacity-60">${String.fromCharCode(65 + i) + "."}</span>
+                                        ${opt}
+                                        ${feedback && i === feedback.correctIdx && html`<span className="ml-2">✅</span>`}
+                                        ${feedback && i === selectedOption && !feedback.isCorrect && html`<span className="ml-2">❌</span>`}
+                                    </button>`;
+                                })}
+                            </div>`}
+
+                            ${!isMCQ && html`<div className="flex flex-col gap-4">
+                                <div className="relative w-full">
+                                    <input type="number" value=${userAns} onChange=${function(e) { setUserAns(e.target.value); }}
+                                        onKeyDown=${function(e) { if (e.key === 'Enter' && userAns !== '') checkNumerical(); }}
+                                        placeholder=${"請輸入淨力大小"} disabled=${feedback && feedback.isCorrect}
+                                        className="border-2 rounded-lg p-3 pl-4 pr-14 w-full text-xl font-bold focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                                        style=${{ fontSize:'18px', borderColor:'var(--card-border)', background:'var(--card-bg)', color:'var(--text-primary)' }} />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold" style=${{ color:'var(--text-secondary)' }}>N</span>
+                                </div>
+                                <button onClick=${checkNumerical} disabled=${feedback && feedback.isCorrect}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-8 py-3 rounded-lg font-bold transition-colors shadow-md flex items-center justify-center gap-2">
+                                    <i data-lucide="check-circle" className="w-5 h-5"></i> ${"提交答案"}
+                                </button>
+                            </div>`}
+
+                            ${feedback && html`<div className=${"mt-5 p-4 rounded-xl font-bold shadow-sm border score-pop " + (feedback.isCorrect ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700')}>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <i data-lucide=${feedback.isCorrect ? "check" : "x"} className="w-5 h-5"></i>
+                                    ${feedback.text}
+                                </div>
+                                ${feedback.explanation && html`<p className="text-sm font-medium opacity-80 mb-3">${"💡 " + feedback.explanation}</p>`}
+                                <button onClick=${generateQuestion}
+                                    className=${"w-full sm:w-auto px-6 py-2 rounded-lg transition-colors shadow-md flex items-center justify-center gap-2 font-bold text-white " + (feedback.isCorrect ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700')}>
+                                    ${feedback.isCorrect ? "下一題 " : "再試一題 "}<i data-lucide="arrow-right" className="w-4 h-4"></i>
+                                </button>
+                            </div>`}
+                        </div>
+
+                        <div className="mt-6 p-4 rounded-xl border" style=${{ background:'var(--surface)', borderColor:'var(--card-border)' }}>
+                            <h3 className="font-bold text-sm mb-3 flex items-center gap-2" style=${{ color:'var(--text-secondary)' }}>
+                                <i data-lucide="book-open" className="w-4 h-4"></i> ${"溫馨提示"}
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs" style=${{ color:'var(--text-secondary)' }}>
+                                <div className="p-3 rounded-lg border" style=${{ background:'var(--card-bg)', borderColor:'var(--card-border)' }}>
+                                    <div className="font-bold mb-1" style=${{ color:'#d97706' }}>${"💡 概念題"}</div>
+                                    ${"考你對力的基本理解"}
+                                </div>
+                                <div className="p-3 rounded-lg border" style=${{ background:'var(--card-bg)', borderColor:'var(--card-border)' }}>
+                                    <div className="font-bold mb-1" style=${{ color:'#8b5cf6' }}>${"🔢 淨力計算"}</div>
+                                    ${"同方向相加，反方向相減"}
+                                </div>
+                                <div className="p-3 rounded-lg border" style=${{ background:'var(--card-bg)', borderColor:'var(--card-border)' }}>
+                                    <div className="font-bold mb-1" style=${{ color:'#2563eb' }}>${"✏️ 隔離體圖"}</div>
+                                    ${"判斷物體受到哪些力"}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`}
+
+                </div>
+            </div>`;
+        }
+
+        var root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(html`<${App} />`);
+    </script>
+</body>
+</html>
