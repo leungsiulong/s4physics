@@ -612,6 +612,12 @@
   .stagger-3 { animation-delay: 0.3s; }
   .stagger-4 { animation-delay: 0.4s; }
   .stagger-5 { animation-delay: 0.5s; }
+  .stagger-6 { animation-delay: 0.6s; }
+
+  /* Chapter cards gap */
+  .chapter-card {
+    margin-bottom: 1rem;
+  }
 
   .fade-up {
     opacity: 0;
@@ -672,7 +678,20 @@
       </div>
     </button>
 
-    <div class="formula-decoration fade-up stagger-4">F = m · a</div>
+    <button class="chapter-card fade-up stagger-5" onclick="navigateTo('viewChapter4')" aria-label="進入第四課 力與運動（II）">
+      <div class="card-top">
+        <div class="card-info">
+          <span class="card-badge">Chapter 4</span>
+          <div class="card-title">Ch4 力與運動（II）</div>
+          <div class="card-desc">Force and Motion (II) — 共面力與系統</div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-arrow-right"></i>
+        </div>
+      </div>
+    </button>
+
+    <div class="formula-decoration fade-up stagger-6">F = m · a</div>
   </div>
 
   <!-- View 2: Chapter 3 Sub-sections -->
@@ -751,6 +770,84 @@
     </div>
 
     <div class="formula-decoration fade-up stagger-4">W = m · g</div>
+  </div>
+
+  <!-- View 3: Chapter 4 Sub-sections -->
+  <div class="view" id="viewChapter4">
+    <button class="back-btn fade-up stagger-1" onclick="navigateTo('viewMain')" aria-label="返回主頁">
+      <i class="fas fa-arrow-left"></i>
+      <span>返回主頁</span>
+    </button>
+
+    <div class="header-icon fade-up stagger-1" style="background: linear-gradient(135deg, #1565c0, #00bcd4);">
+      <i class="fas fa-cogs"></i>
+    </div>
+    <h1 class="title fade-up stagger-2">Ch4 力與運動（II）</h1>
+    <p class="subtitle fade-up stagger-3">選擇以下課題開始學習</p>
+
+    <div class="section-cards">
+      <a class="section-card fade-up stagger-3"
+         href="https://leungsiulong.github.io/s4physics/Ch4/4.1物體組成的系統"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Ch4.1 物體組成的系統">
+        <div class="section-inner">
+          <div class="section-icon">
+            <i class="fas fa-cubes"></i>
+          </div>
+          <div class="section-info">
+            <div class="section-num">SECTION 4.1</div>
+            <div class="section-title">4.1 物體組成的系統</div>
+            <div class="section-desc">System of Objects</div>
+          </div>
+          <div class="section-arrow">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </a>
+
+      <a class="section-card fade-up stagger-4"
+         href="https://leungsiulong.github.io/s4physics/Ch4/4.2力的合成和分解"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Ch4.2 力的合成和分解">
+        <div class="section-inner">
+          <div class="section-icon">
+            <i class="fas fa-compress-arrows-alt"></i>
+          </div>
+          <div class="section-info">
+            <div class="section-num">SECTION 4.2</div>
+            <div class="section-title">4.2 力的合成和分解</div>
+            <div class="section-desc">Composition and Resolution of Forces</div>
+          </div>
+          <div class="section-arrow">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </a>
+
+      <a class="section-card fade-up stagger-5"
+         href="https://leungsiulong.github.io/s4physics/Ch4/4.3共面力與牛頓運動定律"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Ch4.3 共面力與牛頓運動定律">
+        <div class="section-inner">
+          <div class="section-icon">
+            <i class="fas fa-balance-scale"></i>
+          </div>
+          <div class="section-info">
+            <div class="section-num">SECTION 4.3</div>
+            <div class="section-title">4.3 共面力與牛頓運動定律</div>
+            <div class="section-desc">Coplanar Forces and Newton's Laws</div>
+          </div>
+          <div class="section-arrow">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="formula-decoration fade-up stagger-4">ΣF = m · a</div>
   </div>
 </div>
 
@@ -870,4 +967,3 @@
 </script>
 </body>
 </html>
-
